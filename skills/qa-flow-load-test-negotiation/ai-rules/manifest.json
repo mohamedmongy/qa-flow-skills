@@ -1,0 +1,85 @@
+{
+  "$schema_note": "Machine-readable index of the assistant-neutral QA Flow rules. Consumed by tooling and future assistants; keep in sync with the files (see cli_package/tests/test_ai_rules_sync.py).",
+  "version": 1,
+  "rules": [
+    {
+      "id": "flow-negotiation",
+      "path": "negotiation/flow.md",
+      "kind": "negotiation",
+      "title": "Flow negotiation rule",
+      "gated_tools": ["create_flow", "update_flow"]
+    },
+    {
+      "id": "api-negotiation",
+      "path": "negotiation/api.md",
+      "kind": "negotiation",
+      "title": "API definition negotiation rule",
+      "gated_tools": ["create_or_update_api"]
+    },
+    {
+      "id": "test-group-negotiation",
+      "path": "negotiation/test-group.md",
+      "kind": "negotiation",
+      "title": "Test group negotiation rule",
+      "gated_tools": ["create_test_group", "update_test_group", "modify_test_group_items"]
+    },
+    {
+      "id": "query-negotiation",
+      "path": "negotiation/query.md",
+      "kind": "negotiation",
+      "title": "Database query negotiation rule",
+      "gated_tools": ["save_query", "update_query", "duplicate_query", "delete_query"]
+    },
+    {
+      "id": "load-test-negotiation",
+      "path": "negotiation/load-test.md",
+      "kind": "negotiation",
+      "title": "Load test negotiation rule",
+      "gated_tools": ["start_load_test", "manage_load_test_queue"]
+    },
+    {
+      "id": "report-dashboard-negotiation",
+      "path": "negotiation/report-dashboard.md",
+      "kind": "negotiation",
+      "title": "Report dashboard negotiation rule",
+      "gated_tools": ["manage_releases", "test_group_releases", "export_test_group_results", "clear_analytics_cache"]
+    },
+    {
+      "id": "mcp-safeguard",
+      "path": "safeguard.md",
+      "kind": "safeguard",
+      "title": "MCP safeguard rules (all writes; Rule 6 covers destructive/uncovered tools)",
+      "gated_tools": [
+        "delete_flow", "duplicate_flow", "restore_flow_backup",
+        "delete_api_definition", "duplicate_api",
+        "delete_test_group", "copy_test_group",
+        "create_environment", "update_environment", "delete_environment",
+        "manage_environment_variables", "set_environment_db_connection",
+        "upload_asset", "manage_asset", "clear_jobs", "generate_test_suite",
+        "execute_test_group", "run_test_suite", "run_multiple_suites", "run_api", "run_test_case"
+      ]
+    },
+    {
+      "id": "selection-format",
+      "path": "reference/selection-format.md",
+      "kind": "reference",
+      "title": "Selection format + grouped low-priority parameters",
+      "gated_tools": []
+    },
+    { "id": "step-api-call", "path": "reference/step-api-call.md", "kind": "reference", "title": "api_call step guide", "gated_tools": [] },
+    { "id": "step-query", "path": "reference/step-query.md", "kind": "reference", "title": "query step guide", "gated_tools": [] },
+    { "id": "step-wait-until", "path": "reference/step-wait-until.md", "kind": "reference", "title": "wait_until step guide", "gated_tools": [] },
+    { "id": "step-conditional-and-flow", "path": "reference/step-conditional-and-flow.md", "kind": "reference", "title": "conditional & flow step guide", "gated_tools": [] },
+    { "id": "context-wiring", "path": "reference/context-wiring.md", "kind": "reference", "title": "Context export/import, header_import, env templates", "gated_tools": [] },
+    { "id": "flow-structure", "path": "reference/flow-structure.md", "kind": "reference", "title": "Flow JSON structure and inputs", "gated_tools": [] },
+    { "id": "build-workflow", "path": "reference/build-workflow.md", "kind": "reference", "title": "Build sequence and common mistakes", "gated_tools": [] },
+    { "id": "api-and-testcase-selection", "path": "reference/api-and-testcase-selection.md", "kind": "reference", "title": "API selection and test case discovery", "gated_tools": [] },
+    { "id": "file-downloads", "path": "reference/file-downloads.md", "kind": "reference", "title": "File downloads from step responses", "gated_tools": [] }
+  ],
+  "adapters": {
+    "claude": ".claude/skills/ + CLAUDE.md",
+    "kiro": ".kiro/steering/ stubs (auto-included by Kiro)",
+    "copilot": ".github/copilot-instructions.md + .github/instructions/",
+    "agents": "AGENTS.md (Cursor, Codex, Zed, and any AGENTS.md-reading assistant)"
+  }
+}
