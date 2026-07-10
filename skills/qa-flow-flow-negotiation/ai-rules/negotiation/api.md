@@ -25,6 +25,21 @@ Only **after** the user has answered the Step 2 name question, call `list_api_de
 
 Use this context to inform the remaining questions — never to skip them. (This mirrors the flow rule's "zero tool calls before 2a" gating in `ai-rules/negotiation/flow.md`.)
 
+### Name Collision Check (run before asking question 2)
+
+The name confirmed in question 1 must be checked against the `list_api_definitions` result **before** moving on:
+
+- **Exact match exists** → do **not** silently proceed: `create_or_update_api` with an existing name **updates/overwrites** that API. Tell the user it already exists (show its method + endpoint), and ask one question offering **2–3 alternative names** derived from the *Naming Conventions* below — a versioned suffix (`csrf` → `csrf_v2`), a more specific action or resource word (`login` → `login_with_otp`), or a service/scope prefix matching sibling APIs — plus the explicit option to **update the existing API instead**. Example:
+
+  ```
+  An API named `get_csrf_token` already exists (GET {{env.BASE_URL}}/.../auth/csrf). Should I
+  (1) name this one `get_csrf_token_v2`  (2) `get_member_csrf_token`  (3) update the existing `get_csrf_token`  (4) type another name
+  ```
+
+- **Near-collision** — a differently named API already hits the **same method + endpoint** → surface it the same way and ask whether to keep the chosen name (a true variant), reuse the existing API as-is, or update it.
+
+Only when the name is resolved (unique, or the user explicitly chose to update the existing one) continue to question 2.
+
 **Turn the context into pickable options, not prose.** When a similar API exists, seed the remaining questions with its values as concrete options the user can pick with one tap/keystroke instead of typing — e.g. offer its endpoint as *"same as `csrf`"* vs *"different (paste cURL)"*, mirror its test-case set as a suggested scenario list, and propose its tags/priority as the recommended choice. Put the recommended option first. This never replaces asking a question; it only makes answering it faster.
 
 ---
@@ -42,7 +57,7 @@ Based on the user's cURL and the server context, identify only the gaps that are
 
 Ask in this exact order, one message per question:
 
-1. **Name** — What should this API be called? (If a similar one exists, suggest a name and ask for confirmation. Wait for the answer before continuing.)
+1. **Name** — What should this API be called? **When a cURL is provided, don't ask open-ended — detect a proposed name from it first:** derive a `snake_case` name from the HTTP method and the meaningful trailing path segment(s) of the endpoint, following the *Naming Conventions* below (e.g. `GET .../auth/csrf` → `get_csrf_token`, `POST .../blacklist/bulk-upload` → `blacklist_bulk_upload`). Present it as the recommended option the user can accept with one tap, alongside a free-text alternative — e.g. `(1) get_csrf_token (recommended)  (2) type your own`. Wait for the answer before continuing. The duplicate check against the server happens immediately after, in Step 1 (see *Name Collision Check*) — never claim the name is available before that check has run.
 2. **Test cases** — Ask in plain English: *"What scenarios should this API cover? e.g. successful export, invalid GUID, missing token — describe them however you like."* Wait for the answer. Derive status codes and overrides from the answer. Do not invent scenarios.
 3. **Assertions** — *"Do you have specific assertions to validate in the response (e.g. a body field, a message)?"* Wait for the answer. Do not skip this and do not add assertions speculatively.
 4. **Tags and priority** — *"Should test cases be tagged (e.g. smoke, positive, negative) and given a priority (high, medium, low)?"* Wait for the answer.
