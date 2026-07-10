@@ -29,16 +29,16 @@ Use this context to inform the remaining questions — never to skip them. (This
 
 The name confirmed in question 1 must be checked against the `list_api_definitions` result **before** moving on:
 
-- **Exact match exists** → do **not** silently proceed: `create_or_update_api` with an existing name **updates/overwrites** that API. Tell the user it already exists (show its method + endpoint), and ask one question offering **2–3 alternative names** derived from the *Naming Conventions* below — a versioned suffix (`csrf` → `csrf_v2`), a more specific action or resource word (`login` → `login_with_otp`), or a service/scope prefix matching sibling APIs — plus the explicit option to **update the existing API instead**. Example:
+- **Exact match exists** → do **not** proceed with that name: `create_or_update_api` with an existing name would **overwrite** that API, and a name collision must **always** resolve to creating a new API under a new name — never to updating the existing one. Tell the user it already exists (show its method + endpoint), and ask one question offering **2–3 alternative names** derived from the *Naming Conventions* below — a versioned suffix (`csrf` → `csrf_v2`), a more specific action or resource word (`login` → `login_with_otp`), or a service/scope prefix matching sibling APIs — plus a free-text option. Example:
 
   ```
-  An API named `get_csrf_token` already exists (GET {{env.BASE_URL}}/.../auth/csrf). Should I
-  (1) name this one `get_csrf_token_v2`  (2) `get_member_csrf_token`  (3) update the existing `get_csrf_token`  (4) type another name
+  An API named `get_csrf_token` already exists (GET {{env.BASE_URL}}/.../auth/csrf). This new API needs a different name. Should I
+  (1) name it `get_csrf_token_v2`  (2) `get_member_csrf_token`  (3) type another name
   ```
 
-- **Near-collision** — a differently named API already hits the **same method + endpoint** → surface it the same way and ask whether to keep the chosen name (a true variant), reuse the existing API as-is, or update it.
+- **Near-collision** — a differently named API already hits the **same method + endpoint** → surface it and ask whether to keep the chosen name (a true variant) or reuse the existing API as-is instead of creating a duplicate.
 
-Only when the name is resolved (unique, or the user explicitly chose to update the existing one) continue to question 2.
+Only when a **unique** name is settled continue to question 2. (Updating an existing API is a separate, explicit user request — it never happens as a collision fallback.)
 
 **Turn the context into pickable options, not prose.** When a similar API exists, seed the remaining questions with its values as concrete options the user can pick with one tap/keystroke instead of typing — e.g. offer its endpoint as *"same as `csrf`"* vs *"different (paste cURL)"*, mirror its test-case set as a suggested scenario list, and propose its tags/priority as the recommended choice. Put the recommended option first. This never replaces asking a question; it only makes answering it faster.
 
