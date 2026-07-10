@@ -37,12 +37,12 @@ Always go through the negotiation steps below. Each flow-building concern has it
 
 The following behaviors are **strictly forbidden**, regardless of step type or how much detail the user already provided:
 
-- Calling `list_queries`, `list_api_definitions`, `get_available_apis`, `list_flows`, `get_flow`, `get_test_cases`, or **any** MCP tool **before starting the negotiation sequence**.
+- Calling `list_queries`, `list_api_definitions`, `get_available_apis`, `get_flow`, `get_test_cases`, or **any** MCP tool **before starting the negotiation sequence** — with a single exception: the one `list_flows` name-availability check that immediately precedes the 2a question (see 2a).
 - Calling `create_flow` or `update_flow` without completing Steps 1–3 below.
 - Treating a stated step type, query name, API name, or flow name as sufficient to skip negotiation.
 - "Gathering context first" — this is not preparation, it is the forbidden pattern itself.
 
-**The only permitted first action** when any flow request is received is to ask the user the Step 2a question (flow name and description). Zero tool calls before that.
+**The only permitted pre-negotiation action** when a flow creation request is received is the 2a name-availability check: detect the intended flow name, call `list_flows` once to check whether it already exists, then immediately ask the Step 2a question with that result in hand. Zero other tool calls before 2a is answered.
 
 ---
 
@@ -50,7 +50,7 @@ The following behaviors are **strictly forbidden**, regardless of step type or h
 
 After the user confirms the flow name and description, **then** query the server:
 
-1. `list_flows` — does a similar flow already exist? Is this an update or a new flow?
+1. `list_flows` — already called for the 2a name check; reuse its result: does a similar flow exist? Is this an update or a new flow?
 2. `list_api_definitions` — which APIs are available as steps? Do all required APIs exist?
 3. If a similar flow exists, call `get_flow` on it to understand existing patterns (step types, context wiring, session config, naming). Use this as **reference only** — never assume the new flow should copy it.
 4. Call `get_test_cases` on **every API** that will be used as a step, so you can present the available test cases to the user.
@@ -68,11 +68,11 @@ The user may want different test cases, different exports, different headers, a 
 Work through each concern below by asking the user directly. Do **not** assume — even for things that seem obvious.
 
 ### 2a — Flow Name and Description
-- Based on what the user described, **propose a flow name and a short description** before asking anything else.
-- Use a concise, snake_case name that reflects the flow's purpose (e.g. `login_with_otp`, `checkout_flow`, `verify_user_identity`).
+- **Before asking, run the name-availability check** — the only pre-negotiation tool call: detect the intended flow name (the user's stated name, or a concise `snake_case` proposal reflecting the flow's purpose, e.g. `login_with_otp`, `checkout_flow`, `verify_user_identity`) and call `list_flows` to see whether it already exists.
+- **Name is free** → ask: **"I suggest naming this flow `<proposed_name>` — '<proposed_description>'. Does that work, or would you like a different name or description?"**
+- **Name already exists** → a collision **always** resolves to creating a new flow under a **new name** — never overwrite or update the existing flow as a fallback (updating is a separate, explicit user request). Tell the user it exists and offer **2–3 alternatives** (versioned suffix like `login_with_otp_v2`, or a more specific purpose word) plus a free-text option, e.g. `(1) login_with_otp_v2  (2) login_with_url_otp_check  (3) type another name`.
 - Keep the description to one sentence explaining what the flow does end-to-end.
-- Ask: **"I suggest naming this flow `<proposed_name>` — '<proposed_description>'. Does that work, or would you like a different name or description?"**
-- Wait for the user to confirm or provide their own name/description before moving on.
+- Wait for the user to confirm or provide their own name/description before moving on; if their free-text name also collides, re-check before continuing.
 
 ### 2b — Steps — Per-Step-Type Negotiation Questions
 
@@ -225,7 +225,7 @@ Only after **all steps are fully negotiated**, ask the **flow-level configuratio
 - **Never** mix unrelated topics in the same message (e.g. "Which API should this use, and what should the whole flow export?"). Grouping the **related low-priority parameters of one concern** into a single message (overrides+delays, exports+imports, all params of one query) is *required* by the question sets above — what is forbidden is cross-topic bundling and plan-disguised-as-question.
 - **Never** conclude what the user wants and skip asking — even if it seems obvious from context.
 - **Never** show a full multi-step plan and call it "negotiation". That is not negotiation.
-- **Never** call any MCP tool (`list_queries`, `list_api_definitions`, `get_available_apis`, `get_flow`, `list_flows`, `get_test_cases`, or anything else) as the first response to a flow creation request. The first response must always be the 2a negotiation question.
+- **Never** call any MCP tool (`list_queries`, `list_api_definitions`, `get_available_apis`, `get_flow`, `get_test_cases`, or anything else) before the 2a question — **except** the single `list_flows` name-availability check that immediately precedes it. The first *response* must always be the 2a negotiation question, informed by that check.
 - **Never** treat any step type as an exception to negotiation. `query`, `api_call`, `wait_until`, `conditional`, `flow`, `wait` — all require the full per-step-type negotiation sequence above before building.
 - **Never** skip step-type-specific questions because the step type or target name was stated in the request. The full question set for that step type must be asked.
 
