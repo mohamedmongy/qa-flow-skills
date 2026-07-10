@@ -9,19 +9,29 @@ These rules apply to **any AI assistant** whenever a user requests the creation 
 
 **Never call `create_or_update_api` as the first response to a user request.**
 
-**Exactly one action precedes the first negotiation question — the Step 1 name-availability check.** When the request arrives (a cURL, a name, or both), first detect the intended API name and call `list_api_definitions` to check whether it already exists, then ask the Step 2 name question with that result in hand. No other tool call is permitted before negotiation begins — not `get_api_definition`, not `health_check`, nor any other read-only tool. "Gathering context first" beyond this single check is the forbidden pattern itself; deeper context gathering happens after the name is settled.
+**The source comes first, then the name check, then the name question.** An API definition is built from a concrete request — the cURL (or an existing API to base it on). If the user's message doesn't include one, the FIRST response asks for it (Step 1a, zero tool calls). As soon as the source is in hand, detect the intended API name and call `list_api_definitions` to check whether it already exists, then ask the Step 2 name question with that result. No other tool call is permitted before negotiation begins — not `get_api_definition`, not `health_check`, nor any other read-only tool. "Gathering context first" beyond this single check is the forbidden pattern itself; deeper context gathering happens after the name is settled.
 
 Always go through the negotiation steps below in order.
 
 ---
 
-## Step 1 — Detect the Name and Check Availability (First Action, Before the First Question)
+## Step 1 — Get the Source, Then Check Name Availability (Before the Name Question)
 
-Do this **before** asking anything:
+### 1a — Ask for the source (only if missing)
 
-1. **Detect the candidate name.** If the user provided a name, use it. Otherwise derive a `snake_case` candidate from the cURL — the HTTP method plus the meaningful trailing path segment(s) of the endpoint, following the *Naming Conventions* below (e.g. `GET .../auth/csrf` → `get_csrf_token`, `POST .../blacklist/bulk-upload` → `blacklist_bulk_upload`).
+If the request does not already contain a cURL, a pointer to an existing API to base the new one on, or an equivalent spec (e.g. a Postman/Swagger item), the first response is — with **zero tool calls**:
 
-2. **Check availability.** Call `list_api_definitions` — this single read-only call is the only tool use allowed before the first question — and compare the candidate against the existing names:
+> *"Do you have a cURL for this API (paste it), or should I base it on an existing API definition?"*
+
+**Skip this question entirely when the source is already in the request** — never re-ask for what was provided.
+
+### 1b — Detect the candidate name
+
+**Detect the candidate name from the source.** If the user provided a name, use it. Otherwise derive a `snake_case` candidate from the cURL — the HTTP method plus the meaningful trailing path segment(s) of the endpoint, following the *Naming Conventions* below (e.g. `GET .../auth/csrf` → `get_csrf_token`, `POST .../blacklist/bulk-upload` → `blacklist_bulk_upload`).
+
+### 1c — Check availability
+
+Call `list_api_definitions` — this single read-only call is the only tool use allowed before the name question — and compare the candidate against the existing names:
 
    - **Name is free** → the Step 2 name question proposes it as the recommended option, stated as available, alongside a free-text alternative. If differently named APIs already hit the **same method + endpoint** (a near-collision), say so in the same question and include "reuse `<existing>` as-is" among the options so the user can avoid creating a duplicate.
 
@@ -32,7 +42,7 @@ Do this **before** asking anything:
      (1) name it `get_csrf_token_v2`  (2) `get_member_csrf_token`  (3) type another name
      ```
 
-3. If the user answers with a free-text name of their own, re-check it against the same listing before moving on. Only a **unique, user-confirmed** name settles question 1.
+If the user answers the name question with a free-text name of their own, re-check it against the same listing before moving on. Only a **unique, user-confirmed** name settles the name question.
 
 ### After the Name Is Settled — Gather Deeper Context
 

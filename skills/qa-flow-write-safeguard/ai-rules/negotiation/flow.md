@@ -42,7 +42,7 @@ The following behaviors are **strictly forbidden**, regardless of step type or h
 - Treating a stated step type, query name, API name, or flow name as sufficient to skip negotiation.
 - "Gathering context first" — this is not preparation, it is the forbidden pattern itself.
 
-**The only permitted pre-negotiation action** when a flow creation request is received is the 2a name-availability check: detect the intended flow name, call `list_flows` once to check whether it already exists, then immediately ask the Step 2a question with that result in hand. Zero other tool calls before 2a is answered.
+**The source comes first, then the name check.** If the request doesn't describe what the flow should do (its goal / the steps to chain), the first response asks exactly that — with zero tool calls. As soon as the purpose is known, the **only permitted pre-negotiation action** runs: the 2a name-availability check — derive the intended flow name from the purpose, call `list_flows` once to check whether it already exists, then immediately ask the 2a name question with that result in hand. Zero other tool calls before 2a is answered.
 
 ---
 
@@ -67,8 +67,9 @@ The user may want different test cases, different exports, different headers, a 
 
 Work through each concern below by asking the user directly. Do **not** assume — even for things that seem obvious.
 
-### 2a — Flow Name and Description
-- **Before asking, run the name-availability check** — the only pre-negotiation tool call: detect the intended flow name (the user's stated name, or a concise `snake_case` proposal reflecting the flow's purpose, e.g. `login_with_otp`, `checkout_flow`, `verify_user_identity`) and call `list_flows` to see whether it already exists.
+### 2a — Purpose, Then Flow Name and Description
+- **The purpose comes first.** If the user's request doesn't describe what the flow should do (its goal or the steps to chain), ask exactly that as the first question — zero tool calls: *"What should this flow do — which calls or checks should it chain, end to end?"* Skip this entirely when the request already describes it — never re-ask for what was provided.
+- **Then run the name-availability check** — the only pre-negotiation tool call: detect the intended flow name (the user's stated name, or a concise `snake_case` proposal derived from the purpose, e.g. `login_with_otp`, `checkout_flow`, `verify_user_identity`) and call `list_flows` to see whether it already exists.
 - **Name is free** → ask: **"I suggest naming this flow `<proposed_name>` — '<proposed_description>'. Does that work, or would you like a different name or description?"**
 - **Name already exists** → a collision **always** resolves to creating a new flow under a **new name** — never overwrite or update the existing flow as a fallback (updating is a separate, explicit user request). Tell the user it exists and offer **2–3 alternatives** (versioned suffix like `login_with_otp_v2`, or a more specific purpose word) plus a free-text option, e.g. `(1) login_with_otp_v2  (2) login_with_url_otp_check  (3) type another name`.
 - Keep the description to one sentence explaining what the flow does end-to-end.

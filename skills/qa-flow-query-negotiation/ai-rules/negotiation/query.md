@@ -19,7 +19,7 @@ A saved query is a reusable, parameterized DB method that flows reference from a
 
 **Never call `save_query`, `update_query`, `duplicate_query`, or `delete_query` as the first response to a user request.**
 
-**No tool calls before negotiation begins.** The FIRST response to a query-creation request must be the Step 2 name-and-kind question — **not** `list_queries`, `list_databases`, `get_db_schema`, `get_db_status`, `health_check`, or any other read-only tool. "Gathering context first" is the forbidden pattern itself. Context-gathering happens in Step 1, **after** the name question is answered.
+**The query itself comes first, then the name check, then the name question.** If the request doesn't say what the query should do (a pasted SQL/Mongo statement, or a described lookup) and which **kind** it is, the FIRST response asks exactly that — with **zero tool calls**. As soon as the purpose and kind are known, run the single permitted pre-negotiation tool call: derive a candidate method name from the action, call `list_queries` to check whether it already exists, then ask the name question with that result in hand — proposing the candidate if free, or **2–3 alternatives** if taken (a collision **always** resolves to a new query under a new name — never to updating the existing one as a fallback; updating is a separate, explicit request). No other tool call is permitted before negotiation begins — not `list_databases`, `get_db_schema`, `get_db_status`, `health_check`, nor any other read-only tool. "Gathering context first" beyond this single check is the forbidden pattern itself; deeper context-gathering happens in Step 1, **after** the name question is answered.
 
 Negotiation means: ask one question, wait for the answer, ask the next. The user drives the decisions; you surface the options.
 
@@ -29,7 +29,7 @@ Negotiation means: ask one question, wait for the answer, ask the next. The user
 
 Only **after** the user has answered the Step 2 name/kind question, query the server:
 
-1. `list_queries` — does a query with this name (or one doing the same job) already exist? Is this a new query or an update?
+1. `list_queries` — already called for the name-availability check; reuse its result: does a query doing the same job already exist? Is this a new query or an update?
 2. `list_databases` / `get_db_status` — which databases are connected, and which are SQL (PostgreSQL) vs MongoDB. The chosen `database` name must match exactly.
 3. `get_db_schema(db_name)` — discover the real tables/columns (SQL) or collections/fields (Mongo) so the query targets things that actually exist. **Never invent a table, column, or collection name.**
 4. If a similar query exists, call `get_query` on it (with the right `kind`) to understand the existing pattern — **reference only**, never assume the new query should copy it.
@@ -48,17 +48,18 @@ Use this context to inform your questions, not to skip them.
 
 Ask in this exact order, one message per question (skip a question only when the user has already stated that detail unambiguously):
 
-1. **Name & kind** — Propose a concise `snake_case` method name (e.g. `get_user_by_email`, `count_active_subscriptions`) and ask whether this is a **SQL** query (PostgreSQL), a **Mongo** query (generates a Python method), or a **Mongo definition** (JSON only). (This is the first response — **no tool calls** before it. The name must match `^[a-zA-Z_][a-zA-Z0-9_]*$`.)
-2. **Which database?** Present the connected databases from `list_databases` as a numbered list (laid out per the Selection format rule) and ask which one. The name becomes the query's `database`. **If the intended database is not connected**, stop and surface that — never guess a connection name.
-3. **Target & operation — ONE grouped message.**
+1. **What & kind — ONE grouped message.** Asked open-ended and with **zero tool calls**: *"What should this query do — paste the SQL / Mongo filter, or describe the lookup — and is it (1) SQL (PostgreSQL)  (2) Mongo (generates a Python method)  (3) Mongo definition (JSON only)?"* **Skip whichever half the request already states** — never re-ask for what was provided.
+2. **Name** — Asked with the availability check already run (derive a concise `snake_case` candidate from the action, e.g. `get_user_by_email`, `count_active_subscriptions`, and call `list_queries` — the single pre-negotiation tool call): if the candidate is **free**, propose it as the recommended option alongside free text; if it **already exists**, tell the user and offer **2–3 alternatives** (versioned suffix, more specific action word) plus free text — never an "update the existing query" fallback. The name must match `^[a-zA-Z_][a-zA-Z0-9_]*$`; if the user's own free-text name also collides, re-check before moving on.
+3. **Which database?** Present the connected databases from `list_databases` as a numbered list (laid out per the Selection format rule) and ask which one. The name becomes the query's `database`. **If the intended database is not connected**, stop and surface that — never guess a connection name.
+4. **Target & operation — ONE grouped message.**
    - *SQL:* which table(s)/schema (confirm against `get_db_schema`), and does the statement **read or write**? (`query_type` is **ALWAYS `raw_sql`** — do not offer or pick any other SQL type. `raw_sql` routes through `execute_raw_sql`, which handles **every** PostgreSQL statement: `SELECT` (returns rows), `INSERT`/`UPDATE`/`DELETE` (returns rowcount), CTEs, window functions, subqueries, `CALL` stored procedures, `DO $$…$$` anonymous blocks, and DDL. The `return_type` is what shapes the result, not the query type — so don't ask "which SQL type", just the read-or-write question for the destructive-write guard.)
    - *Mongo:* which `collection`, and which `operation`: `(1) find  (2) findOne  (3) count  (4) aggregate  (5) update  (6) assert`.
    - **If the statement mutates data (any SQL write — INSERT/UPDATE/DELETE/CALL/DO, or Mongo `update`)** — flag it explicitly now; it is a write against a real database (see *Destructive-write guard*).
-4. **The query body** —
+5. **The query body** — usually already collected in question 1; ask only for what's still missing.
    - *SQL:* ask for the `sql_query` (or derive it from what the user described). Use placeholders for every dynamic value — `%s` (positional) or `%(name)s` (named), consistently within one statement.
    - *Mongo:* ask for the `filter` (and `projection`), or the `pipeline` for `aggregate`. Use `"{param_name}"` placeholders for dynamic values.
    - **For every static literal** (client IDs, tenant IDs, status IDs, usernames, dates, secrets) apply *Static Values → Parameters or Env Vars* below — do **not** hardcode it. Several pending literals are presented together in one table-style message, each picking its home.
-5. **Parameters & return type — ONE grouped message.** Present **all** placeholders in a single table-style question — for each, the parameter `name` (snake_case, valid Python identifier), `type`, and whether it is `required` (the count of parameters must match the count of placeholders) — and, in the same message, the return type:
+6. **Parameters & return type — ONE grouped message.** Present **all** placeholders in a single table-style question — for each, the parameter `name` (snake_case, valid Python identifier), `type`, and whether it is `required` (the count of parameters must match the count of placeholders) — and, in the same message, the return type:
    - *SQL* (`return_type`): `(1) record` (first row as dict) `(2) array` (all rows) `(3) field` (single value of first row) `(4) boolean` (rowcount > 0) `(5) count` (the count value).
    - *Mongo / definition*: `document` (find/findOne), `count`, `field`, or `boolean` — derived from the operation.
 
