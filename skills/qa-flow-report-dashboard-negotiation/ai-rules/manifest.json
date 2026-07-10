@@ -17,6 +17,13 @@
       "gated_tools": ["create_or_update_api"]
     },
     {
+      "id": "collection-import",
+      "path": "negotiation/collection-import.md",
+      "kind": "workflow",
+      "title": "Collection import (Postman/Swagger) negotiation rule — bulk create_or_update_api; composes with api-negotiation",
+      "gated_tools": []
+    },
+    {
       "id": "test-group-negotiation",
       "path": "negotiation/test-group.md",
       "kind": "negotiation",
