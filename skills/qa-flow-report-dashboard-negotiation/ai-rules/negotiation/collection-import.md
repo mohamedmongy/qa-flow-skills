@@ -40,8 +40,8 @@ If the request does not already point to a collection/spec (a file path, an atta
 Read the file and present a **read-only** summary in one message so the user sees the scope before any decision:
 
 - **Format & version** — Postman v2.1 collection, or OpenAPI 3.x / Swagger 2.0.
-- **Folders and request counts** — a table of top-level folders with the number of requests in each, and the total. Cap the list per `reference/selection-format.md` (show ≤20, note the rest).
-- **Detected variables** — every `{{var}}` used across the collection (Postman) or every `servers[]` / `securityScheme` / shared parameter (OpenAPI). Flag obvious typo-duplicates (e.g. `tenant` vs `teenant`, `token` vs `tokeen`, `member-url` vs `MemberBaseUrl`) so the user can decide whether they collapse to one env var.
+- **Folders and request counts** — a table of top-level folders (Postman) or operation `tags` (OpenAPI, untagged → first path segment) with the number of requests/operations in each, and the total. Cap the list per `reference/selection-format.md` (show ≤20, note the rest).
+- **Detected variables** — every `{{var}}` used across the collection (Postman) or every `servers[]` / `securityScheme` / shared parameter (OpenAPI). Flag obvious typo-duplicates (e.g. `tenant` vs `teenant`, `token` vs `tokeen`, `member-url` vs `MemberBaseUrl`) so the user can decide whether they collapse to one env var. For OpenAPI, also note whether the server URL is **relative** (path-only, no host) and how many operations each security scheme covers (including how many declare **no** security).
 
 This is a summary, not a question. Follow it immediately with Step 3's first question.
 
@@ -102,11 +102,12 @@ After the batch:
 
 When the source is an OpenAPI 3.x / Swagger 2.0 spec instead of a Postman collection, the mapping in Steps 2–4 changes as follows; everything else is identical:
 
-- **Grouping (folders):** use the operation `tags` (or the first path segment when untagged) as the batch unit, in place of Postman folders.
+- **Grouping (folders):** use the operation `tags` (or the first path segment when untagged) as the batch unit, in place of Postman folders. An operation with several tags belongs to its **first** tag only — never build it twice.
 - **API name:** prefer `operationId` when present (converted to `snake_case`); otherwise derive from `method` + the meaningful path segments (e.g. `GET /policies/{id}` → `get_policy_by_id`).
-- **Endpoint / base URL:** `servers[].url` (OpenAPI) or `host` + `basePath` (Swagger) → `{{env.BASE_URL}}` per Step 3.1. Path templating `{param}` maps to test-case params / flow inputs, not hardcoded values.
-- **Auth:** `components.securitySchemes` (or Swagger `securityDefinitions`) → the Step 3.2 auth decision (typically bearer → `{{env.TOKEN}}`).
-- **Payload:** synthesize a sample body from the `requestBody` schema (`example`/`examples` first, else schema defaults) → the test-case `payload`.
+- **Endpoint / base URL:** `servers[].url` (OpenAPI) or `host` + `basePath` (Swagger) → `{{env.BASE_URL}}` per Step 3.1. A **relative server URL** (path-only, e.g. `"url": "/api/v0"`) has no host at all — the endpoint becomes `{{env.BASE_URL}}` + that prefix + the path (e.g. `{{env.BASE_URL}}/api/v0/Agent`), and the Step 3.1 question must establish which environment/base URL the spec is served from (the spec cannot tell you). Path templating `{param}` maps to test-case params / flow inputs, not hardcoded values.
+- **Parameters:** `in: query` parameters → the test case's query `params`; `in: path` → params / flow inputs; non-auth `in: header` parameters → API headers (env var or literal per Step 3.1). Required vs optional matters: include required params in the default test case, mention optional ones in the batch table.
+- **Auth:** `components.securitySchemes` (or Swagger `securityDefinitions`) → the Step 3.2 auth decision. **Bearer/OAuth** → typically `Authorization: Bearer {{env.TOKEN}}`. **`apiKey` schemes** send a custom header instead — map each scheme to its own env var named after the header (e.g. header `Access-Token` → `Access-Token: {{env.ACCESS_TOKEN}}`, `Internal-Token` → `{{env.INTERNAL_TOKEN}}`), marked sensitive. Security can vary **per operation** (`security` on the operation, falling back to the spec's global `security`): operations with no security get **no** auth header; when an operation accepts **several alternative schemes**, the Step 3.2 question asks which one is the default for the import (one question, covering all such operations). The batch table shows which auth header each API gets.
+- **Payload:** synthesize a sample body from the `requestBody` schema — `example`/`examples` first, else schema defaults/types — **resolving `$ref` pointers into `components.schemas` / `definitions`** (nested refs included) so the sample is complete → the test-case `payload`.
 - **Content type:** the operation's `requestBody` media type → the API `content_type` (`application/json`, `multipart/form-data`, …) per `api.md`.
 
 ---

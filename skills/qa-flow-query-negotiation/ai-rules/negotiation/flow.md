@@ -87,8 +87,8 @@ Ask these in order — two single questions, then two **grouped** questions (per
 
 1. **Which API?** Call `list_api_definitions` first. Present as numbered menu: `(1) csrf  (2) login_with_otp  (3) get_client_api_groups`
 2. **Which test case?** Call `get_test_cases` on the chosen API. Present all available test cases as a numbered menu. Never default to `default` without asking.
-3. **Overrides & delays — ONE grouped message.** Does this step need any of: **(a)** payload overrides beyond what the test case provides (field names and values — static, `{{context.*}}`, `{{auto.*}}`); **(b)** URL query-param overrides (`params`); **(c)** `waitBefore` / `waitAfter` delays (default 0)? Offer "none" as the easy answer. **For every static literal value, do not silently hardcode it — apply *Static Values → Flow Inputs or Env Vars* below.**
-4. **Context wiring — ONE grouped message.** **(a)** What to export: which response fields should this step save to context for downstream steps (numbered menu including a "none" option). **(b)** What to import as headers (`header_import`): header name, context variable (e.g. `csrf_step.csrfToken`), and optional prefix (e.g. `"Bearer "`) — or none.
+3. **Overrides & delays — ONE grouped message.** Does this step need any of: **(a)** payload overrides beyond what the test case provides (field names and values — static, `{{context.*}}`, `{{auto.*}}`); **(b)** URL query-param overrides (`params`); **(c)** `waitBefore` / `waitAfter` delays (default 0)? Offer "none" as the easy answer. **When a payload field or query param matches an earlier step's export (by name or purpose), pre-suggest that `{{context.<step>.<field>}}` value** per *Smart Context Wiring* below. **For every static literal value, do not silently hardcode it — apply *Static Values → Flow Inputs or Env Vars* below.**
+4. **Context wiring — ONE grouped message.** **Lead with the resolved suggestion** per *Smart Context Wiring* below — matched export→consumer pairs and import candidates as a picker (accept all / subset / none / custom). Cover: **(a)** What to export: which response fields should this step save to context for downstream steps (numbered menu including a "none" option). **(b)** What to import as headers (`header_import`): header name, context variable (e.g. `csrf_step.csrfToken`), and optional prefix (e.g. `"Bearer "`) — or none.
 
 ---
 
@@ -105,8 +105,8 @@ Ask these in order — the parameters are collected as ONE grouped message:
    - tenant:  (a) flow input  (b) env var  (c) previous step  (d) static
    ```
 
-   **Lead with inputs/env vars, not the static option** — if the user gives a static literal, apply *Static Values → Flow Inputs or Env Vars* below before keeping it hardcoded.
-3. **What to export?** Which fields from the query result should be saved to context? DB results are accessed as `result.<field>` — for arrays use `result[0].<field>`. Present inferred exportable fields if known, plus a "none" option.
+   **Lead with inputs/env vars, not the static option** — if the user gives a static literal, apply *Static Values → Flow Inputs or Env Vars* below before keeping it hardcoded. When an earlier step already exports a matching value, **pre-suggest it** for option (c) — name the exact context variable (e.g. `create_user.userId` for `user_id`) per *Smart Context Wiring* below.
+3. **What to export?** Which fields from the query result should be saved to context? DB results are accessed as `result.<field>` — for arrays use `result[0].<field>`. Apply *Smart Context Wiring* below: present inferred exportable fields matched to their downstream consumers as a picker, plus a "none" option.
 
 ---
 
@@ -127,7 +127,7 @@ Ask these in order — cadence + condition and the wiring are each ONE grouped m
    ```
 
    **Remind the user:** DB query results must use `result.<field>` as the condition field path, never bare field names.
-3. **Context wiring — ONE grouped message.** **(a)** What to export from the final successful poll response. **(b)** *(API-polling variant only — do NOT skip it just because this is a `wait_until` step)* what to import as headers (`header_import`): e.g. Step 1's `csrfToken` as an `X-CSRF-Token` header, or an auth/bearer token — header name, context variable, optional prefix.
+3. **Context wiring — ONE grouped message.** **Lead with the resolved suggestion** per *Smart Context Wiring* below. **(a)** What to export from the final successful poll response. **(b)** *(API-polling variant only — do NOT skip it just because this is a `wait_until` step)* what to import as headers (`header_import`): e.g. Step 1's `csrfToken` as an `X-CSRF-Token` header, or an auth/bearer token — header name, context variable, optional prefix.
 
 ---
 
@@ -136,7 +136,7 @@ Ask these in order — cadence + condition and the wiring are each ONE grouped m
 Ask these in order — two grouped messages:
 
 1. **The condition — ONE grouped message (mode + expression).**
-   - If visual: which context field to check (e.g. `login_step.accessToken`), which operator (`==`, `!=`, `>`, `<`, `contains`, `is_empty`, `is_not_empty`), and what value to compare against. If multiple conditions, the logic operator: `(1) AND  (2) OR`.
+   - If visual: which context field to check (e.g. `login_step.accessToken`), which operator (`==`, `!=`, `>`, `<`, `contains`, `is_empty`, `is_not_empty`), and what value to compare against. If multiple conditions, the logic operator: `(1) AND  (2) OR`. **Pre-suggest the likely field** per *Smart Context Wiring* below — offer the exports already agreed on earlier steps as pickable candidates (and if the needed field isn't exported yet, propose retro-adding that export).
    - If python_code: ask the user to describe the logic; you will write the snippet using `get_var()`, `continue_flow()`, `raise_error()`, `stop_flow()`, `run_subflow()`, `jump_to_step()`.
 2. **Outcomes — ONE grouped message: on-true AND on-false together.** Present the options once and ask for both branches: `(1) continue  (2) warn  (3) stop  (4) raise_error  (5) run_flow (pick sub-flow)  (6) jump (pick step name)` — e.g. *"On true → ? On false → ?"*. **If `run_flow` is chosen for a branch**, follow up (for that branch only): which sub-flow, and what input values to pass (`subflow_inputs`).
 
@@ -147,7 +147,7 @@ Ask these in order — two grouped messages:
 Ask these in order — the wiring is ONE grouped message:
 
 1. **Which sub-flow to invoke?** Call `list_flows` first. Present as numbered menu.
-2. **Wiring — ONE grouped message: inputs + exports.** Call `get_flow` on the chosen sub-flow to check its declared `inputs`, then present **all** of them in one table-style question — for each, where does the value come from: flow input, env var, previous step context, or a static value? **Offer inputs/env vars first; if the user gives a static literal, apply *Static Values → Flow Inputs or Env Vars* below before hardcoding it.** In the same message, ask which context keys should be pulled from the sub-flow back into the parent flow (or none).
+2. **Wiring — ONE grouped message: inputs + exports.** Call `get_flow` on the chosen sub-flow to check its declared `inputs`, then present **all** of them in one table-style question — for each, where does the value come from: flow input, env var, previous step context, or a static value? **Apply *Smart Context Wiring* below: when an earlier step's export matches a sub-flow input (by name or purpose), pre-suggest that exact context variable as the recommended pick for it.** **Offer inputs/env vars first; if the user gives a static literal, apply *Static Values → Flow Inputs or Env Vars* below before hardcoding it.** In the same message, ask which context keys should be pulled from the sub-flow back into the parent flow (or none).
 
 ---
 
@@ -160,6 +160,28 @@ Ask only one question:
 ---
 
 > **Selection format rule:** small fixed choice sets → an inline numbered menu on one line — `(1) a  (2) b  (3) c`. Long lists of existing items → a numbered table/list, one option per line with a short identifying detail; show at most **20** (tell the user more exist and to just name theirs); prefix rows with `- [ ]` when several can be picked. Full rule, examples, and native structured-UI guidance: read `ai-rules/reference/selection-format.md` before presenting your first list.
+
+### 🧠 Smart Context Wiring — Resolve, Suggest, Let the User Pick
+
+Context variables can feed **every step type**: `api_call` headers (`header_import`), payload fields and URL/query params (`{{context.*}}` templates), DB `query` inputs, sub-flow (`flow`) inputs, and `conditional` condition fields. Whenever a step's question set reaches a context-wiring topic (what to export, what to import, where a parameter's value comes from), **do not ask it open-ended — resolve the likely wiring yourself first**, then present the result as a pickable suggestion:
+
+1. **What this step can provide** — infer exportable fields from the chosen API's test cases (`get_test_cases` — assertions and `context_export` in existing cases reveal the response shape), the saved query's result columns, or the sub-flow's exported context keys. Auth/session material (tokens, csrf, ids, GUIDs, status fields) are prime candidates.
+2. **What other steps will need** — scan the flow goal and every step already negotiated (and those still coming) for consumers: API headers, payload fields, query params, DB query inputs, sub-flow inputs, conditional comparison fields.
+3. **Match producers to consumers** and present the pairs as the suggested wiring inside the step's existing grouped context-wiring question — as a picker (use the native structured picker per `ai-rules/reference/selection-format.md` when available):
+
+   ```
+   Suggested context wiring for step 2 (`login`):
+   - [ ] export `accessToken` → step 3 `Authorization` header (prefix "Bearer ")
+   - [ ] export `userId`      → step 4 query input `user_id`
+   (1) accept all suggested  (2) keep only some — tell me which  (3) none  (4) different wiring — tell me
+   ```
+
+Rules:
+
+- **Suggestions never replace the question.** The user always confirms; accepting the suggestion (option 1) counts as explicit confirmation of every suggested pair. This stays ONE grouped message per step — the suggestion is the content of the wiring question, not an extra message.
+- **Retro-fill missing exports.** While negotiating step N, if it consumes a value no earlier step exports, propose adding the export to the producing step (naming the step and field) — or a flow input / env var per *Static Values → Flow Inputs or Env Vars* — and get the user's pick. Never leave a dangling `{{context.*}}` reference.
+- **Mirror agreed wiring on the consumer side.** When the consuming step's question comes up later, present the already-agreed import as the recommended default option instead of re-asking from scratch.
+- **Never invent fields.** Suggest only what is evidenced by test cases, query columns, sub-flow exports, or the user's stated goal. If nothing sensible can be inferred, fall back to the plain open question.
 
 ### ⚠️ Static Values → Flow Inputs or Env Vars
 
