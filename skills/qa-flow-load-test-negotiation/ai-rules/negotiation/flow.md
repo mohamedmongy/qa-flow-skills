@@ -332,4 +332,5 @@ The flow "[flow_name]" has been created successfully. Would you like to run it n
 - It is not a rigid questionnaire. Questions are adapted to the specific request — but they are never skipped.
 - It does not block quick edits where all details are already explicitly stated by the user.
 - It does not apply when the user is asking for information only (e.g. "show me the flow", "list all flows").
+- It does not govern creating a flow from a **fully-specified steps document** (per-step endpoints/SQL, `{{env.*}}`/`{{context.*}}` wiring, timeouts) — `negotiation/flow-import.md` replaces the per-step question cadence there with an internal ledger driving a per-step confirmation loop plus one summary + build confirmation; this file still owns the flow's structure and step semantics.
 - A similar existing flow is **reference material only** — it is never a substitute for asking the user what they want.

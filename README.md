@@ -35,6 +35,7 @@ npx skills remove
 | Skill | Purpose |
 |---|---|
 | `qa-flow-collection-import` | MUST be used whenever the user asks to bulk-import a request collection into QA Flow API definitions. |
+| `qa-flow-flow-import` | MUST be used whenever the user asks to create a QA Flow flow from a steps document. |
 | `qa-flow-flow-negotiation` | MUST be used whenever the user asks to create or update a QA Flow flow (create_flow/update_flow) or API definition (create_or_update_api) via the qa-flow MCP server. |
 | `qa-flow-load-test-negotiation` | MUST be used whenever the user asks to start or manage a QA Flow load test / stress test / performance test (start_load_test/manage_load_test_queue) via the qa-flow MCP server. |
 | `qa-flow-query-negotiation` | MUST be used whenever the user asks to create, update, duplicate, or delete a QA Flow saved database query (save_query/update_query/duplicate_query/delete_query). |
