@@ -74,6 +74,13 @@
       ]
     },
     {
+      "id": "docker-run-operations",
+      "path": "operations/docker-run.md",
+      "kind": "workflow",
+      "title": "Operations rule — project setup, running plans (local/container/CI), pipeline job, image build & publish",
+      "gated_tools": []
+    },
+    {
       "id": "selection-format",
       "path": "reference/selection-format.md",
       "kind": "reference",
@@ -89,7 +96,8 @@
     { "id": "build-workflow", "path": "reference/build-workflow.md", "kind": "reference", "title": "Build sequence and common mistakes", "gated_tools": [] },
     { "id": "api-and-testcase-selection", "path": "reference/api-and-testcase-selection.md", "kind": "reference", "title": "API selection and test case discovery", "gated_tools": [] },
     { "id": "file-downloads", "path": "reference/file-downloads.md", "kind": "reference", "title": "File downloads from step responses", "gated_tools": [] },
-    { "id": "steps-doc-format", "path": "reference/steps-doc-format.md", "kind": "reference", "title": "Steps-document format for one-shot flow import", "gated_tools": [] }
+    { "id": "steps-doc-format", "path": "reference/steps-doc-format.md", "kind": "reference", "title": "Steps-document format for one-shot flow import", "gated_tools": [] },
+    { "id": "run-plans", "path": "reference/run-plans.md", "kind": "reference", "title": "Run plans, environments, channels, exit codes, failure triage", "gated_tools": [] }
   ],
   "adapters": {
     "claude": ".claude/skills/ + CLAUDE.md",
