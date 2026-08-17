@@ -75,7 +75,8 @@ Before calling any of these:
 2. **Check dependents before deleting.** `delete_query` fails and returns `used_in` when referenced; flows and suites may be referenced by test groups — surface what depends on the target instead of forcing or working around it.
 3. **For direct executions**, confirm the environment (`environment_id` / `BASE_URL`) and background-vs-foreground before running; report the returned `job_id`s afterwards. Present environment choices per `ai-rules/reference/selection-format.md`.
 4. **For `restore_flow_backup`**, state which backup (name/timestamp from `list_flow_backups`) will overwrite the current flow definition.
-5. **Report the real result** — deleted/skipped counts, file paths, job ids — and never auto-chain another action.
+5. **For `run_api` with `prerequisites`** (ad-hoc auth chaining — read `qa-flow://schemas/prerequisites` first), the confirmation must name the whole chain, not just the target: which APIs/flows run first and in what order, and which response field lands in which header/body field. It is real traffic from every step, including the logins. The chain is never saved — say so, so the user does not expect it to apply to later group/CI runs. Two additions: with **`auto_inject`** the server derives mappings you did not write, so state that it is on and what it is expected to wire (and report `prerequisite_results.auto_inferred` afterwards — never present an auto-derived injection as something the user asked for); and a **flow prerequisite with declared inputs** needs its `inputs` values confirmed with the rest of the chain, since they are test data the user owns, not a detail to invent.
+6. **Report the real result** — deleted/skipped counts, file paths, job ids — and never auto-chain another action.
 
 ---
 
