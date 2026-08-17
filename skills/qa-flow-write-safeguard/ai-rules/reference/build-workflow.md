@@ -39,6 +39,8 @@ Always follow this order. Skipping steps causes silent failures or runtime error
 | `query_method` without saving the query first | Method not found error at runtime | Call `save_query` first, confirm with `list_queries` |
 | `"use_shared_session": false` with `session_config` defined | session_config headers are not applied | Set `"use_shared_session": true` |
 | `"test_cases": "default"` (string instead of array) | Format mismatch — not processed as multiple cases | Use `"test_cases": ["default"]` |
+| A negative test case listed **last** in `test_cases` on a step that exports context | Exports are "last wins" — the failing case's response (or `None`) overwrites the good one and breaks later steps | Order `test_cases` so the case that produces the exported value is last |
+| Step-level `payload` copied from one test case while several are selected | Only fields the test case doesn't define are applied — the override is (correctly) ignored, which surprises if it was meant to apply | Keep step `payload` for shared wiring only (`{{context.*}}`), or use a single test case per step |
 | Hardcoding a Bearer token in a step | Token won't rotate, breaks other environments | Use `header_import` with `"variable": "step_N.accessToken"` and `"prefix": "Bearer "` |
 | Calling `create_flow` without `validate_flow` first | Structural errors not caught until runtime | Always validate before saving |
 | `update_flow` with only new/changed steps | Generator replaces the entire steps array | `get_flow` first → modify → send complete steps array |
@@ -52,8 +54,8 @@ Always follow this order. Skipping steps causes silent failures or runtime error
 | Situation | Use |
 |---|---|
 | Call an existing API once | `api_call` |
-| Run multiple test cases on one API in sequence | `api_call` with `test_cases` array |
-| Poll an API until a condition is met | `wait_until` with `api` + `test_case` |
+| Run multiple test cases on one API in sequence | `api_call` with `test_cases` array (order = execution order; last one feeds `context_export`) |
+| Poll an API until a condition is met | `wait_until` with `api` + `test_case` (or `test_cases` — each is polled in turn) |
 | Poll a DB until a record appears or changes | `wait_until` with `query_method` |
 | Fetch data from DB for use in later steps | `query` |
 | Reuse another flow as a building block | `flow` |

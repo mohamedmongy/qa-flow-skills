@@ -28,7 +28,7 @@ The most common step type. Executes one or more test cases from an existing API 
 | `api` | **yes** | Must match an existing API definition name exactly |
 | `test_case` | yes (or `test_cases`) | Single test case name string |
 | `test_cases` | yes (or `test_case`) | Array of test case names — runs all sequentially |
-| `payload` | no | Overrides or supplements the test case's default payload. Step payload takes precedence. |
+| `payload` | no | Overrides or supplements the test case's default payload. Step payload takes precedence — except with multiple test cases (see below). |
 | `params` | no | Query string parameter overrides. Same merge rule as `payload`. |
 | `context_export` | no | **List** of response field names to save into flow context (canonical field) |
 | `response_export` | no | Legacy alias for `context_export` — prefer `context_export`; don't set both |
@@ -38,20 +38,27 @@ The most common step type. Executes one or more test cases from an existing API 
 | `waitAfter` | no | Seconds to wait after executing (default 0) |
 | `file_downloads_code` | no | Python snippet to save response files to Assets Manager |
 
-## Multiple Test Cases — "Last Wins"
+## Multiple Test Cases — Order Matters, "Last Wins"
 
-When `test_cases` is an array, all test cases run sequentially. Each one's response overwrites the previous export. Only the **last** test case's response is exported to context. Step is marked **failed** if any test case fails.
+When `test_cases` is an array, all test cases run sequentially **in the order listed**, each with **its own payload** from the API definition — that is the point of selecting several. A step-level `payload` cannot describe them all, so it only supplements fields the test case itself does not define (see the merge order below).
+
+Each test case's response overwrites the previous export, so only the **last** test case's response reaches `<step>.<field>` and every later step reads that one. **Put the test case whose response the flow consumes last.** The step is marked **failed** if any test case fails (the rest still run), regardless of order.
 
 ```json
-{ "test_cases": ["valid_login", "invalid_tenant", "invalid_csrf_token"] }
+// invalid cases first, the case that exports the token last
+{ "test_cases": ["invalid_tenant", "invalid_csrf_token", "valid_login"], "context_export": ["accessToken"] }
 ```
+
+Full ordering rules and examples: `api-and-testcase-selection.md`.
 
 ## Payload Merge Order
 
 1. Test case's own `payload` is loaded as the base
-2. Step-level `payload` fields are merged on top (step wins on conflicts)
+2. Step-level `payload` fields are merged on top (step wins on conflicts) — **single test case only**. With multiple test cases, step fields that the test case already defines are ignored (logged at runtime) and only new fields (e.g. `{{context.*}}` wiring) are added
 3. `{{context.*}}` placeholders in the merged payload are resolved against live flow context
 4. If `payload` is defined on the step, its fields are auto-exported to context
+
+`params` follows the same rule.
 
 ## Critical Rules
 

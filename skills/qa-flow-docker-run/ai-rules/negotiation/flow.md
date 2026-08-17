@@ -86,7 +86,8 @@ For **every step** in the requested flow, work through its type-specific questio
 Ask these in order — two single questions, then two **grouped** questions (per the *Grouped low-priority parameters* rule in `ai-rules/reference/selection-format.md`):
 
 1. **Which API?** Call `list_api_definitions` first. Present as numbered menu: `(1) csrf  (2) login_with_otp  (3) get_client_api_groups`
-2. **Which test case?** Call `get_test_cases` on the chosen API. Present all available test cases as a numbered menu. Never default to `default` without asking.
+2. **Which test case?** Call `get_test_cases` on the chosen API. Present all available test cases as a numbered menu. Never default to `default` without asking. The user may pick **several** — say so in the menu ("pick one or more").
+   **If more than one is picked, confirm the ORDER in the same message** — they run sequentially in the order given, each with its own payload, and **only the LAST one's response is exported to context** (`context_export` / `response_export` are "last wins"). Restate the resulting order and name which test case will feed the exports, e.g. *"order: invalid_password → valid_login; `login.accessToken` comes from valid_login"*. Never leave a negative case last on a step that exports context — propose moving it earlier, or splitting the step. Details: `ai-rules/reference/api-and-testcase-selection.md`.
 3. **Overrides & delays — ONE grouped message.** Does this step need any of: **(a)** payload overrides beyond what the test case provides (field names and values — static, `{{context.*}}`, `{{auto.*}}`); **(b)** URL query-param overrides (`params`); **(c)** `waitBefore` / `waitAfter` delays (default 0)? Offer "none" as the easy answer. **When a payload field or query param matches an earlier step's export (by name or purpose), pre-suggest that `{{context.<step>.<field>}}` value** per *Smart Context Wiring* below. **For every static literal value, do not silently hardcode it — apply *Static Values → Flow Inputs or Env Vars* below.**
 4. **Context wiring — ONE grouped message.** **Lead with the resolved suggestion** per *Smart Context Wiring* below — matched export→consumer pairs and import candidates as a picker (accept all / subset / none / custom). Cover: **(a)** What to export: which response fields should this step save to context for downstream steps (numbered menu including a "none" option). **(b)** What to import as headers (`header_import`): header name, context variable (e.g. `csrf_step.csrfToken`), and optional prefix (e.g. `"Bearer "`) — or none.
 
@@ -115,7 +116,7 @@ Ask these in order — the parameters are collected as ONE grouped message:
 Ask these in order — cadence + condition and the wiring are each ONE grouped message:
 
 1. **What to poll — API or DB query?**
-   - If API: same questions as `api_call` items 1 and 2 (which API, which test case).
+   - If API: same questions as `api_call` items 1 and 2 (which API, which test case — including the order + "last wins" confirmation when several are picked; each selected test case is polled in turn with its own full timeout, so warn if `count × timeout` approaches the flow's time limit).
    - If DB query: same questions as `query` items 1 and 2 (which query, what params — grouped).
 2. **Polling configuration — ONE grouped message: timeout + interval + condition.** Offer preset cadences plus custom, and ask for the condition in the same message:
 

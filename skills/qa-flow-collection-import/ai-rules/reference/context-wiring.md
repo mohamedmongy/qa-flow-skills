@@ -31,6 +31,17 @@ The value is stored under the key `<step_name>.<fieldName>`:
 - The `"response."` prefix is stripped automatically before lookup
 - Array indexing `"result[0].guid"` → resolves the first element's `guid`
 
+### Steps With Multiple Test Cases — the LAST one wins
+
+A step that selects several test cases (`test_cases`, on `api_call` or `wait_until`) exports once per test case, each overwriting the last. Only the **final** test case's response survives under `<step_name>.<field>` — so the order of `test_cases` decides what every later step reads.
+
+```json
+{ "name": "login", "test_cases": ["invalid_password", "valid_login"], "context_export": ["accessToken"] }
+// login.accessToken = the accessToken from valid_login (listed last)
+```
+
+Listing a negative case last exports its error body — or `None` — and silently breaks the downstream `context_import` / `header_import` / `{{context.*}}` that expected a real value. Order the array so the case that produces the value comes last; see `api-and-testcase-selection.md`.
+
 ---
 
 ## Declaring Dependencies with context_import

@@ -65,6 +65,7 @@ Repeatedly calls an API or saved query until a condition is satisfied or the tim
 | Field | Required | Notes |
 |---|---|---|
 | `api` + `test_case` | one pair required | API polling variant |
+| `test_cases` | no (instead of `test_case`) | Array of test case names — each one is polled in turn, with its own full `timeout` window |
 | `query_method` + `query_params` | one pair required | DB polling variant |
 | `timeout` | yes | Max seconds before timeout error |
 | `interval` | yes | Seconds between polling attempts |
@@ -73,6 +74,14 @@ Repeatedly calls an API or saved query until a condition is satisfied or the tim
 | `python_code` | if python_code mode | Must `return True` (done) or `return False` (keep waiting) |
 | `context_export` / `response_export` | no | Fields to save from the final successful response |
 | `header_import` | no | Same as `api_call` — injects context values as headers |
+
+## Multiple Test Cases
+
+Like `api_call`, a `wait_until` step may select several test cases (`test_cases`). Each one is polled against the same condition **in array order**, each with its own full `timeout`/`interval` budget and its own payload/params.
+
+**Order matters:** exports follow the same **last wins** rule — only the last polled test case's response reaches `<step>.<field>`, so list the test case whose response later steps consume last. The step is marked **failed** if any test case times out or errors (the remaining test cases still run).
+
+Note the worst-case duration: N test cases × `timeout` seconds. Keep it inside the flow's `expected_flow_execution_time`.
 
 ## Visual Mode Condition Operators
 

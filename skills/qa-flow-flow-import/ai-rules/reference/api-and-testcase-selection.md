@@ -43,14 +43,39 @@ The name must match exactly what `get_test_cases` returns.
 ## Wiring Multiple Test Cases in One Step
 
 ```json
-{ "test_cases": ["valid_login", "invalid_tenant", "invalid_csrf_token"] }
+{ "test_cases": ["invalid_tenant", "invalid_csrf_token", "valid_login"] }
 ```
 
-- All test cases run sequentially on the same API instance
+- All test cases run sequentially on the same API instance, **in array order**
+- Each test case is sent with **its own payload/params** from the API definition — that is the point of selecting several (see the override rule below)
 - Context export uses the **last** test case's response ("last wins")
-- Step is marked **failed** if any single test case fails
+- Step is marked **failed** if any single test case fails; the remaining test cases still run
 
 `test_cases` must be an **array** — passing a string causes a format error.
+
+The same applies to a `wait_until` step (see `step-wait-until.md`): every selected test case is polled in turn, each with its own full timeout window.
+
+### ⚠️ ORDER MATTERS — the last test case feeds the context
+
+The array order is not cosmetic. It is both the execution order and the export contract:
+
+| What depends on order | Rule |
+|---|---|
+| `context_export` / `response_export` | Every test case overwrites the previous export; only the **last** one's values survive into `<step>.<field>` |
+| Later steps (`context_import`, `header_import`, `{{context.*}}`) | They read whatever the **last** test case produced |
+| Step status | Independent of order — any failure fails the step |
+
+**Therefore: put the test case whose response later steps consume LAST.** A negative case placed last exports its error body (or `None`) and breaks every downstream step that expected a token/id.
+
+```json
+// ✅ correct — the happy path is last, so login.accessToken is a real token
+{ "name": "login", "test_cases": ["invalid_password", "valid_login"], "context_export": ["accessToken"] }
+
+// ❌ wrong — accessToken is exported from the failing negative case
+{ "name": "login", "test_cases": ["valid_login", "invalid_password"], "context_export": ["accessToken"] }
+```
+
+If a step both exports context and needs negative cases in a specific reporting order, split it into two steps instead of relying on export order.
 
 ---
 
@@ -71,9 +96,11 @@ Provide a `payload` on the step to override or supplement the test case's defaul
 }
 ```
 
-**Merge rule:** step-level `payload` keys take precedence over the test case's own payload keys. Both are merged, then `{{context.*}}` placeholders are resolved.
+**Merge rule (single test case):** step-level `payload` keys take precedence over the test case's own payload keys. Both are merged, then `{{context.*}}` placeholders are resolved.
 
-Same rule applies to `params` for GET/DELETE query string parameters.
+**Merge rule (multiple test cases):** each test case keeps its own payload; the step-level `payload` only fills in fields the test case does **not** define (e.g. `{{context.*}}` wiring shared by all of them). Fields the test case defines are kept and the skip is logged at runtime — otherwise every selected test case would be sent with one identical body.
+
+Same rules apply to `params` for GET/DELETE query string parameters.
 
 ---
 
@@ -83,6 +110,7 @@ Same rule applies to `params` for GET/DELETE query string parameters.
 2. `get_test_cases(api_name)` → note the exact test case name(s) to use
 3. Inspect each test case's payload/params → decide if step-level overrides are needed
 4. Confirm what the API response looks like → plan which fields to add to `context_export`
+5. If more than one test case is selected → confirm the **order**, with the case that feeds `context_export` last
 
 ---
 
