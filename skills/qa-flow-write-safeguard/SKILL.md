@@ -1,6 +1,6 @@
 ---
 name: qa-flow-write-safeguard
-description: MUST be used whenever the user asks for any QA Flow MCP write, destructive, or execution action NOT covered by a negotiation skill — deleting/duplicating/restoring flows, APIs, or test groups (delete_flow/duplicate_flow/restore_flow_backup/delete_api_definition/duplicate_api/delete_test_group/copy_test_group), environment writes (create/update/delete_environment, manage_environment_variables, set_environment_db_connection), assets (upload_asset/manage_asset), clearing job history (clear_jobs), generating suites (generate_test_suite), or directly running an existing test group/suite/flow/API (execute_test_group/run_test_suite/run_multiple_suites/run_api/run_test_case). Ensures the MCP safeguard rules are read, the exact target and dependents are confirmed, and the environment is confirmed before any real execution. Does NOT apply to read-only tools (list_*/get_*/health_check) or to create/update actions covered by the negotiation skills.
+description: MUST be used whenever the user asks for any QA Flow MCP write, destructive, or execution action NOT covered by a negotiation skill — deleting/duplicating/restoring flows, APIs, or test groups (delete_flow/duplicate_flow/restore_flow_backup/delete_api_definition/duplicate_api/delete_test_group/copy_test_group), environment writes (create/update/delete_environment, manage_environment_variables, set_environment_db_connection), assets (upload_asset/manage_asset), clearing job history (clear_jobs), generating suites (generate_test_suite), or directly running an existing test group/suite/flow/API (execute_test_group/run_test_suite/run_multiple_suites/run_api/run_test_case) — including running an API behind an ad-hoc prerequisite chain or a saved prerequisite template ("run X with the login template", run_api with prerequisites/auto_inject/prerequisite_template). Ensures the MCP safeguard rules are read, the exact target and dependents are confirmed, the whole prerequisite chain is expanded and confirmed, and the environment is confirmed before any real execution. Does NOT apply to read-only tools (list_*/get_*/health_check) or to create/update actions covered by the negotiation skills.
 ---
 
 # QA Flow — Write Safeguard (catch-all)
@@ -18,10 +18,11 @@ If the request is actually a create/update of a flow, API, query, test group, lo
 1. **Confirm the exact target and intent first.** Name the target back to the user before deleting, overwriting, restoring, or running it — never guess or invent names/ids, and never batch several destructive actions under one confirmation.
 2. **Check dependents before deleting.** Flows/suites/queries may be referenced by test groups or other flows — surface what depends on the target (`used_in`, group items) instead of forcing or working around it.
 3. **Direct executions are real traffic.** For `execute_test_group` / `run_test_suite` / `run_multiple_suites` / `run_api` / `run_test_case`, confirm the environment (`environment_id` / `BASE_URL`) and background-vs-foreground before running; report the `job_id`s after.
-4. **`clear_jobs` is irreversible** — it erases the run history the report dashboard is built on. State that plainly before proceeding.
-5. **`restore_flow_backup` overwrites the current flow** — state which backup (from `list_flow_backups`) will replace it.
-6. **Never hand-edit generated files** (`.py`, `.json`, test suites) — the MCP tools own them (Rules 1–3).
-7. **Report the real result** — deleted/skipped counts, file paths, job ids — and never auto-chain another action.
+4. **A prerequisite chain is confirmed whole, expanded.** `run_api` with `prerequisites` runs real logins before the target: name every step in order and every response field → header/body mapping, say `auto_inject` is on and what it will wire, and confirm a flow prerequisite's `inputs` values. A `prerequisite_template` is a name, not a confirmation — read it with `get_prerequisite_template` and confirm its expanded steps, mappings and the *names* of any stored inputs (never their values), plus anything passed alongside it, which runs after it. Templates are shared project data (someone else may have changed one) and are read-only over MCP.
+5. **`clear_jobs` is irreversible** — it erases the run history the report dashboard is built on. State that plainly before proceeding.
+6. **`restore_flow_backup` overwrites the current flow** — state which backup (from `list_flow_backups`) will replace it.
+7. **Never hand-edit generated files** (`.py`, `.json`, test suites) — the MCP tools own them (Rules 1–3).
+8. **Report the real result** — deleted/skipped counts, file paths, job ids — and never auto-chain another action.
 
 ## Session resilience (any assistant)
 
