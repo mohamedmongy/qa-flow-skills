@@ -13,6 +13,7 @@ Before doing anything else, Read the matching file and follow it exactly:
 
 - **Flow** (`create_flow` / `update_flow`) → [ai-rules/negotiation/flow.md](ai-rules/negotiation/flow.md)
 - **API definition** (`create_or_update_api`) → [ai-rules/negotiation/api.md](ai-rules/negotiation/api.md)
+- **Env vars** — static values promoted to env vars, `{{env.*}}` / `{{context.env.*}}` syntax, secrets, existence → [ai-rules/negotiation/env-vars.md](ai-rules/negotiation/env-vars.md)
 - **Any QA Flow MCP write** → also [ai-rules/safeguard.md](ai-rules/safeguard.md)
 
 A **whole Postman collection or Swagger/OpenAPI spec** (many endpoints at once) is not this skill's territory — hand it to **qa-flow-collection-import** ([ai-rules/negotiation/collection-import.md](ai-rules/negotiation/collection-import.md)); a single cURL / one endpoint stays here. Likewise, a **fully-specified steps document** (a manual-test file whose steps carry explicit endpoints/SQL, `{{env.*}}`/`{{context.*}}` wiring, and timeouts) goes to **qa-flow-flow-import** ([ai-rules/negotiation/flow-import.md](ai-rules/negotiation/flow-import.md)); a flow described only as a goal or informal steps stays here.

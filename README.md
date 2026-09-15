@@ -36,11 +36,14 @@ npx skills remove
 |---|---|
 | `qa-flow-collection-import` | MUST be used whenever the user asks to bulk-import a request collection into QA Flow API definitions. |
 | `qa-flow-docker-run` | MUST be used whenever the user asks to set up a QA Flow project, run their tests/plans, or wire the pipeline around them. |
+| `qa-flow-env-vars` | MUST be used whenever a QA Flow task touches environment variables or environments. |
 | `qa-flow-flow-import` | MUST be used whenever the user asks to create a QA Flow flow from a steps document. |
 | `qa-flow-flow-negotiation` | MUST be used whenever the user asks to create or update a QA Flow flow (create_flow/update_flow) or API definition (create_or_update_api) via the qa-flow MCP server. |
 | `qa-flow-load-test-negotiation` | MUST be used whenever the user asks to start or manage a QA Flow load test / stress test / performance test (start_load_test/manage_load_test_queue) via the qa-flow MCP server. |
+| `qa-flow-plan-execute` | MUST be used whenever the user asks to execute, build, or apply a QA Flow **build plan**. |
 | `qa-flow-query-negotiation` | MUST be used whenever the user asks to create, update, duplicate, or delete a QA Flow saved database query (save_query/update_query/duplicate_query/delete_query). |
 | `qa-flow-report-dashboard-negotiation` | MUST be used whenever the user asks for a write or run action in the QA Flow report/analytics dashboard (📊 Reports tab). |
+| `qa-flow-spec-plan` | MUST be used whenever the user asks to turn a test/feature/E2E **spec document** into QA Flow automation. |
 | `qa-flow-test-group-negotiation` | MUST be used whenever the user asks to create or update a QA Flow test group (create_test_group/update_test_group/modify_test_group_items) via the qa-flow MCP server. |
 | `qa-flow-write-safeguard` | MUST be used whenever the user asks for any QA Flow MCP write, destructive, or execution action NOT covered by a negotiation skill. |
 

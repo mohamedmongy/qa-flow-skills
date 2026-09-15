@@ -9,7 +9,7 @@ These rules apply to **any AI assistant** whenever a user requests the creation 
 
 **Never call `create_or_update_api` as the first response to a user request.**
 
-**The source comes first, then the name check, then the name question.** An API definition is built from a concrete request — the cURL (or an existing API to base it on). If the user's message doesn't include one, the FIRST response asks for it (Step 1a, zero tool calls). As soon as the source is in hand, detect the intended API name and call `list_api_definitions` to check whether it already exists, then ask the Step 2 name question with that result. No other tool call is permitted before negotiation begins — not `get_api_definition`, not `health_check`, nor any other read-only tool. "Gathering context first" beyond this single check is the forbidden pattern itself; deeper context gathering happens after the name is settled.
+**The source comes first, then the name check, then the name question.** An API definition is built from a concrete request — the cURL (or an existing API to base it on). If the user's message doesn't include one, the FIRST response asks for it (Step 1a, zero tool calls). As soon as the source is in hand, detect the intended API name and run the name-availability check — `list_api_definitions(names_only=True)`, plus a targeted `get_api_definition(candidate)` to confirm a name the listing does not show (see Step 1c and `reference/name-availability.md`) — then ask the Step 2 name question with that result. **Those two calls for the candidate name are one check.** No other tool call is permitted before negotiation begins — not `health_check`, not `get_api_definition` on anything other than the candidate name, nor any other read-only tool. "Gathering context first" beyond this single check is the forbidden pattern itself; deeper context gathering happens after the name is settled.
 
 Always go through the negotiation steps below in order.
 
@@ -31,7 +31,11 @@ If the request does not already contain a cURL, a pointer to an existing API to 
 
 ### 1c — Check availability
 
-Call `list_api_definitions` — this single read-only call is the only tool use allowed before the name question — and compare the candidate against the existing names:
+Call `list_api_definitions(names_only=True)` — this single read-only check is the only tool use allowed before the name question — and compare the candidate against the existing names.
+
+> ⚠️ **A listing proves a name is TAKEN, never that it is FREE.** Results are size-capped, and an artifact trimmed away reads exactly like one that does not exist. So when the candidate does **not** appear, confirm it with `get_api_definition(candidate)` — a 404 is the only reliable evidence the name is free, and a 200 is a collision. That targeted lookup is **part of this same permitted check**, not extra context-gathering. Full rule: `ai-rules/reference/name-availability.md`.
+
+Then:
 
    - **Name is free** → the Step 2 name question proposes it as the recommended option, stated as available, alongside a free-text alternative. If differently named APIs already hit the **same method + endpoint** (a near-collision), say so in the same question and include "reuse `<existing>` as-is" among the options so the user can avoid creating a duplicate.
 
@@ -42,7 +46,7 @@ Call `list_api_definitions` — this single read-only call is the only tool use 
      (1) name it `get_csrf_token_v2`  (2) `get_member_csrf_token`  (3) type another name
      ```
 
-If the user answers the name question with a free-text name of their own, re-check it against the same listing before moving on. Only a **unique, user-confirmed** name settles the name question.
+If the user answers the name question with a free-text name of their own, re-check it the same way — listing **plus** the targeted `get_api_definition` lookup — before moving on. Only a **unique, user-confirmed** name settles the name question.
 
 ### After the Name Is Settled — Gather Deeper Context
 
@@ -81,17 +85,13 @@ Several Step 2 follow-ups are **small fixed choice sets** — the expected statu
 
 ### ⚠️ Static Values → Env Vars (or Flow Inputs)
 
-While deriving payload/params and headers from the cURL or the user's answers, **do not silently hardcode environment-specific, shared-config, or secret literals** (base URLs, host names, client IDs, tenant IDs, status IDs, API keys, Bearer tokens). For each such value, ask — one question, on its own — whether it should be replaced with an env var placeholder:
+While deriving payload/params and headers from the cURL or the user's answers, **do not silently hardcode environment-specific, shared-config, or secret literals** (base URLs, hosts, client/tenant/status IDs, API keys, Bearer tokens). For each such value ask — one question, on its own — where it should live. The options, the recommendation per kind of value, variable naming, and secret handling are defined in **`ai-rules/negotiation/env-vars.md`** (§3 *Where a Value Lives*, §4 *Naming*, §5 *Secrets*) — apply them:
 
 ```
 The cURL has `tenant: montymobile`. Should I (1) replace it with an env var `{{env.TENANT}}`, or (2) keep it literal in the test case?
 ```
 
-- **Environment-specific / shared / secret** → recommend an **env var**: use `{{env.VAR_NAME}}` in `payload`/`params` and `headers`. If the var doesn't exist yet, tell the user it must be added to the environment config and name the variable you propose. Base URLs **always** use `{{env.BASE_URL}}` (see *Environment Variable Placeholders*); never hardcode a host.
-- **Run-varying test data** (IDs, GUIDs, phone numbers) that a flow will supply → note it should come from a flow input when this API is used as a flow step (`{{context.flow_input.X}}`), not be hardcoded in the test case.
-- **Genuinely constant for every run and environment** → only then keep it literal, after the user confirms.
-
-Default recommendation: **env var** for config/secrets, never assume a hardcoded host or token.
+Inside an API definition the form is `{{env.VAR_NAME}}` (env-vars.md §2). A variable the API references must exist — in the **Default** environment — before `create_or_update_api` runs, and a dashboard started before it was added must be restarted first (env-vars.md §6). Name every variable that still has to be created in the Step 3 summary.
 
 ---
 
@@ -127,11 +127,8 @@ These patterns are derived from the existing APIs in this project. Match them wh
 - Descriptive names that reflect the action: `get_`, `login_`, `export_`, `upload_`
 
 ### Environment Variable Placeholders
-- Base URL: always use `{{env.BASE_URL}}` instead of hardcoded hostnames when the API belongs to the main application
-  - Example: `{{env.BASE_URL}}/api-gateway/member/api/v1/auth/csrf`
-- Secondary services have their own env vars: `{{env.HTTP_BIN}}` for httpbin-style endpoints
-- Asset references use `{{assets.<key>}}`: e.g. `{{assets.blacklistkey}}` for file uploads
-- Never hardcode Bearer tokens in the curl — if an Authorization header is present, flag it and ask whether it should be replaced with `{{env.TOKEN}}` or a flow-extracted value
+Base URLs, secondary-service hosts, and tokens follow `ai-rules/negotiation/env-vars.md` (§2 syntax, §3 placement): the main application's base URL is always `{{env.BASE_URL}}` (e.g. `{{env.BASE_URL}}/api-gateway/member/api/v1/auth/csrf`), a secondary service gets its own variable (e.g. `{{env.HTTP_BIN}}`), and an `Authorization` header is never hardcoded — flag it and offer `{{env.TOKEN}}` or a flow-extracted value.
+- Asset references are not env vars: use `{{assets.<key>}}` (e.g. `{{assets.blacklistkey}}`) for file uploads
 
 ### Test Case Structure
 Each test case supports the following fields — use only what's relevant:

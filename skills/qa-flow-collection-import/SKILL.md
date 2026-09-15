@@ -13,7 +13,8 @@ Before doing anything else, Read these and follow them exactly:
 
 - **Bulk collection import** → [ai-rules/negotiation/collection-import.md](ai-rules/negotiation/collection-import.md) — the orchestration rule for this workflow.
 - **Each API it builds** → [ai-rules/negotiation/api.md](ai-rules/negotiation/api.md) — every API produced still conforms to this (naming, test-case structure, Static Values → Env Vars).
-- **Any QA Flow MCP write** → [ai-rules/safeguard.md](ai-rules/safeguard.md) — env-var creation and per-batch confirmation obey it.
+- **Env vars** → [ai-rules/negotiation/env-vars.md](ai-rules/negotiation/env-vars.md) — variable/URL mapping, auth tokens as sensitive env vars, existence checks, creation before the batch, the restart step.
+- **Any QA Flow MCP write** → [ai-rules/safeguard.md](ai-rules/safeguard.md) — per-batch confirmation obeys it.
 
 Present every choice per [ai-rules/reference/selection-format.md](ai-rules/reference/selection-format.md).
 
@@ -23,7 +24,7 @@ Present every choice per [ai-rules/reference/selection-format.md](ai-rules/refer
 2. **Parse, then show the inventory.** Reading the collection file is a local read (not an MCP call) and is allowed. Present a read-only summary — folders (Postman) or operation tags (OpenAPI) with request counts, the detected `{{variables}}` / servers + security schemes (flag typo-duplicates, relative server URLs, and per-operation security variance) — before any decision. For OpenAPI specifics — tags as batches, relative `servers[].url` prefixed onto `{{env.BASE_URL}}`, `apiKey` header schemes mapped to their own sensitive env vars (per-operation security respected, no-security operations get no auth header), `$ref`-resolved sample payloads — follow the rule's *Swagger / OpenAPI Specifics* section.
 3. **Negotiate the global conventions ONCE, one topic per message** — (1) variable/URL mapping, (2) auth, (3) naming, (4) test-case policy, (5) batching. Related low-priority settings are grouped into a single preset-menu question. These answers form a **convention ledger** applied to every API; restate it if the conversation is long enough that it scrolls out of view (safeguard Rule 7). Never bundle unrelated topics; wait for each answer.
 4. **Build ONE folder/tag per batch, each confirmed.** The only MCP tool allowed before a batch is built is a single `list_api_definitions` name-availability check for that batch. A collision always resolves to a NEW name — never overwrite an existing API. Present the batch table (request → api_name, method, endpoint, promoted vars, test case) and get explicit confirmation before calling `create_or_update_api`.
-5. **Create missing env vars first**, then build. The dashboard rejects a curl whose `{{env.VAR}}` isn't in the environment — add it via `manage_environment_variables` (per safeguard) before the APIs that reference it.
+5. **Create missing env vars first**, then build — per `env-vars.md`: confirm absence beyond a truncated listing, create anything an API references in the Default environment, collect secrets masked and write them `sensitive: true`, and restart a dashboard that predates the new variables before the first `create_or_update_api` (it rejects a curl whose `{{env.VAR}}` it cannot resolve).
 6. **After a batch, report and never auto-run.** Ask before running anything. Re-confirm the next folder at the batch step before building it.
 
 If you find yourself about to call `create_or_update_api` (or `manage_environment_variables`) before the conventions and the current batch are confirmed, stop and ask the next negotiation question instead.

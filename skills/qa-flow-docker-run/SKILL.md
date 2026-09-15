@@ -35,7 +35,8 @@ If you find yourself about to execute a confirm-bucket command before the user h
 ## When this skill does NOT apply
 
 - Creating or updating flows, APIs, test groups, queries, load tests, or report-dashboard writes → the matching **qa-flow-\*-negotiation** skill.
-- Deleting/duplicating artifacts, environment/asset writes, or directly running an existing group/suite through MCP → **qa-flow-write-safeguard**.
+- Deleting/duplicating artifacts, asset writes, or directly running an existing group/suite through MCP → **qa-flow-write-safeguard**.
+- Environment variables and environments through MCP (`{{env.*}}` references, secrets, `manage_environment_variables` and the environment tools) → **qa-flow-env-vars**.
 - Information-only requests ("what does `--parallel` do?", "show me the plan format") → answer from the rules; no confirmation needed because nothing executes.
 
 ## Session resilience (any assistant)

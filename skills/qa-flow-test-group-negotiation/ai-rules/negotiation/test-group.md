@@ -22,6 +22,8 @@ Negotiation means: ask one question, wait for the answer, ask the next. The user
 Only **after** the user has answered the Step 2 name/description question, query the server:
 
 1. `list_test_groups` — already called for the name-availability check; reuse its result: does a similar group exist? Is this a new group or an update?
+
+> ⚠️ **A listing proves a name is TAKEN, never that it is FREE** — results are size-capped, so an artifact trimmed out of the listing reads exactly like one that does not exist. Prefer `list_test_groups(names_only=True)`, and confirm any name you intend to create with a targeted `get_test_group(name)` (404 = genuinely free). That lookup is part of this same permitted check. Full rule: `ai-rules/reference/name-availability.md`.
 2. `get_test_group_available_items` — which `flow`, `test_suite`, and `query` items can be added.
 3. If a similar group exists, call `get_test_group` on it to understand existing patterns (items, order, execution config, release). Use this as **reference only** — never assume the new group should copy it.
 
@@ -113,7 +115,7 @@ The test group "[group_name]" has been created successfully. Would you like to r
 - Pass each item as `{ "type": "flow" | "test_suite" | "query", "name": "<exact_name>" }`. `name` must match exactly what `get_test_group_available_items` returns — a wrong name fails validation.
 - **`id`, `order`, `description`, and `config` are auto-generated server-side — do NOT construct them.** `create_test_group`, `update_test_group`, and `modify_test_group_items` (add/reorder) normalize every item: each gets a unique `id`, an `order` by position, and `config` defaulted to `{ "parameters": {} }`. The executor reads `item['config']` directly, so this normalization is what prevents the run-time `KeyError: 'config'` that minimal `{type, name}` items used to trigger.
 - **Only supply `config.parameters`** when a flow/query needs input values — populate it from the item's `inputs` array in `get_test_group_available_items`. Anything you provide is preserved; anything you omit is defaulted.
-- **Static parameter values:** the values you put in `config.parameters` feed a flow's declared inputs, so per-run test data belongs here. But if a value is environment-specific or a secret (base URLs, tenant IDs, tokens), don't hardcode it in the group — it should be an env var referenced inside the flow itself (`{{context.env.X}}`), not pinned per test group. Flag such cases to the user instead of baking the literal into the group definition.
+- **Static parameter values:** the values you put in `config.parameters` feed a flow's declared inputs, so per-run test data belongs here. But if a value is environment-specific or a secret (base URLs, tenant IDs, tokens), don't hardcode it in the group — it should be an env var referenced inside the flow itself (`{{context.env.X}}`), not pinned per test group. Flag such cases to the user instead of baking the literal into the group definition — placement and secret handling follow `ai-rules/negotiation/env-vars.md` §3 and §5.
 
 The stored shape (after server normalization) looks like:
 

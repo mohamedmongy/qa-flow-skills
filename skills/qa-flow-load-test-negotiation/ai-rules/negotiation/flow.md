@@ -70,6 +70,8 @@ Work through each concern below by asking the user directly. Do **not** assume �
 ### 2a — Purpose, Then Flow Name and Description
 - **The purpose comes first.** If the user's request doesn't describe what the flow should do (its goal or the steps to chain), ask exactly that as the first question — zero tool calls: *"What should this flow do — which calls or checks should it chain, end to end?"* Skip this entirely when the request already describes it — never re-ask for what was provided.
 - **Then run the name-availability check** — the only pre-negotiation tool call: detect the intended flow name (the user's stated name, or a concise `snake_case` proposal derived from the purpose, e.g. `login_with_otp`, `checkout_flow`, `verify_user_identity`) and call `list_flows` to see whether it already exists.
+
+> ⚠️ **A listing proves a name is TAKEN, never that it is FREE** — results are size-capped, so an artifact trimmed out of the listing reads exactly like one that does not exist. Prefer `list_flows(names_only=True)`, and confirm any name you intend to create with a targeted `get_flow(name)` (404 = genuinely free). That lookup is part of this same permitted check. Full rule: `ai-rules/reference/name-availability.md`.
 - **Name is free** → ask: **"I suggest naming this flow `<proposed_name>` — '<proposed_description>'. Does that work, or would you like a different name or description?"**
 - **Name already exists** → a collision **always** resolves to creating a new flow under a **new name** — never overwrite or update the existing flow as a fallback (updating is a separate, explicit user request). Tell the user it exists and offer **2–3 alternatives** (versioned suffix like `login_with_otp_v2`, or a more specific purpose word) plus a free-text option, e.g. `(1) login_with_otp_v2  (2) login_with_url_otp_check  (3) type another name`.
 - Keep the description to one sentence explaining what the flow does end-to-end.
@@ -186,11 +188,7 @@ Rules:
 
 ### ⚠️ Static Values → Flow Inputs or Env Vars
 
-**Whenever a negotiated value is a static literal — a hardcoded payload field, query param, query input, sub-flow input, `wait_until`/`conditional` comparison value, header value, etc. — do not silently bake it into the flow.** Stop and ask the user where the value should live:
-
-- **Varies between runs or is test data** (user IDs, GUIDs, feature IDs, phone numbers, amounts, emails) → declare it as a **flow input** and reference it with `{{context.flow_input.X}}`. See 2d.
-- **Environment-specific or shared config / secrets** (base URLs, client IDs, tenant IDs, status IDs, API keys, tokens) → store it as an **env var** and reference it with `{{context.env.X}}` (or `env.X` in `header_import.variable`). See 2e.
-- **Genuinely constant for every run and every environment** → only then keep it hardcoded, and only after the user explicitly confirms that's what they want.
+**Whenever a negotiated value is a static literal — a hardcoded payload field, query param, query input, sub-flow input, `wait_until`/`conditional` comparison value, header value, etc. — do not silently bake it into the flow.** Stop and ask the user where the value should live: a **flow input** (run-varying test data — see 2d), an **env var** (environment-specific config or a secret — see 2e), or hardcoded (only after the user explicitly confirms). The classification, the default recommendation for each kind of value, variable naming, and secret handling are defined in **`ai-rules/negotiation/env-vars.md`** §3–§5 — apply them rather than re-deriving them here.
 
 Collect placements efficiently: a single literal is one question; **several pending literals are presented together in ONE table-style message**, each row picking its home — never one message per literal:
 
@@ -201,7 +199,7 @@ You gave 3 static values — where should each live?  (1) flow input  (2) env va
 - channel = "web":           (1) / (2) / (3)
 ```
 
-Default recommendation: **flow input** for run-varying values, **env var** for environment/config/secret values. **Never assume hardcoding** — a static literal in a payload, param, or input is a prompt to ask this question, not a value to copy verbatim. This applies across every step type.
+**Never assume hardcoding** — a static literal in a payload, param, or input is a prompt to ask this question, not a value to copy verbatim. This applies across every step type.
 
 ### 2c — Shared Session Config
 > See `ai-rules/reference/context-wiring.md` for full schema and usage.
@@ -222,12 +220,11 @@ Default recommendation: **flow input** for run-varying values, **env var** for e
 - If all values come from env vars (or the user explicitly chose to keep them hardcoded) → no `inputs` needed.
 
 ### 2e — Environment Variables
-> See `ai-rules/reference/context-wiring.md` (env templates) for full syntax and variable inventory.
+> The authoritative rule is `ai-rules/negotiation/env-vars.md` — syntax per location, placement, secrets, existence checks, create-before-use.
 
-- Are any values (base URLs, client IDs, status IDs, tenant IDs, tokens) environment-specific, shared config, or secrets?
-- This is also where every static literal flagged by the *Static Values → Flow Inputs or Env Vars* rule lands when the user chooses "env var."
-- If yes → use `{{context.env.VAR_NAME}}` in payloads/params, or `env.VAR_NAME` in `header_import.variable`. If the env var does not exist yet, tell the user it must be added to the environment config (via `manage_environment_variables` / the environment) and name the variable you propose.
-- Do not hardcode values that belong in environment config or flow inputs — promote them per the rule above.
+- Are any values (base URLs, client IDs, status IDs, tenant IDs, tokens) environment-specific, shared config, or secrets? This is also where every static literal flagged above lands when the user chooses "env var."
+- Reference them with `{{context.env.VAR_NAME}}` in payloads/params/query inputs and `env.VAR_NAME` in `header_import.variable` (env-vars.md §2) — the `context.` prefix is required inside a flow.
+- Check each variable exists in the environment the flow runs in; a truncated `get_environment` listing proves presence only (env-vars.md §6). A missing one must be created before the build — name it and the environment it goes in, and collect any secret value per env-vars.md §5.
 
 ---
 

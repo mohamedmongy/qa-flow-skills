@@ -30,6 +30,8 @@ Negotiation means: ask one question, wait for the answer, ask the next. The user
 Only **after** the user has answered the Step 2 name/kind question, query the server:
 
 1. `list_queries` — already called for the name-availability check; reuse its result: does a query doing the same job already exist? Is this a new query or an update?
+
+> ⚠️ **A listing proves a name is TAKEN, never that it is FREE** — results are size-capped, so an artifact trimmed out of the listing reads exactly like one that does not exist. Prefer `list_queries(names_only=True)`, and confirm any name you intend to create with a targeted `get_query(name)` (404 = genuinely free). That lookup is part of this same permitted check. Full rule: `ai-rules/reference/name-availability.md`.
 2. `list_databases` / `get_db_status` — which databases are connected, and which are SQL (PostgreSQL) vs MongoDB. The chosen `database` name must match exactly.
 3. `get_db_schema(db_name)` — discover the real tables/columns (SQL) or collections/fields (Mongo) so the query targets things that actually exist. **Never invent a table, column, or collection name.**
 4. If a similar query exists, call `get_query` on it (with the right `kind`) to understand the existing pattern — **reference only**, never assume the new query should copy it.
@@ -155,7 +157,7 @@ The query "[method_name]" has been created successfully. Would you like me to sm
 - Operations map to helpers: `find`/`findOne` (with `projection`), `count`, `aggregate` (with `pipeline`), `update`, `assert` (fails if no document matches).
 
 ### Env vars & placeholders
-- Query **values** support `{{env.VAR_NAME}}` and `{{env.VAR_NAME|default}}` — resolved by `test_query` / runtime when an `environment_id` is set (`VAR_NAME` must be uppercase). They are **not** resolved at definition time.
+- Query **values** support `{{env.VAR_NAME}}` and `{{env.VAR_NAME|default}}` — resolved by `test_query` / at run time for the `environment_id` in play, **not** at definition time. Placement, naming, secrets, and existence checks follow `ai-rules/negotiation/env-vars.md`.
 
 ### Result access from a flow step
 - A `query` step exports under the **`result`** prefix (not `response`): `result.<field>` for a single record, `result[0].<field>` for arrays. After export it's referenced as `{{context.<step>.result.<field>}}`.

@@ -130,15 +130,7 @@ Use the full `{{context.<path>}}` syntax inside `payload`, `params`, and `query_
 
 ### Environment Variable Template Forms
 
-For environment variables specifically, `context_substitution.py` resolves three forms (in addition to `{{context.env.VAR}}`):
-
-| Form | Behavior |
-|---|---|
-| `{{env.VAR_NAME}}` | Reads `VAR_NAME` from the active environment (`os.environ`) |
-| `{{env.VAR_NAME\|default}}` | Same, but falls back to `default` when the variable is unset |
-| `{{env.<slug>.VAR_NAME}}` | Always reads from the named `.env.<slug>` file (e.g. `{{env.live.BASE_URL}}` reads `.env.live`) regardless of the active environment |
-
-`VAR_NAME` must be uppercase (`[A-Z_][A-Z0-9_]*`); the slug must be lowercase.
+The full syntax for environment variables — `{{context.env.VAR}}`, `{{env.VAR}}`, `{{env.VAR|default}}`, the pinned `{{env.<slug>.VAR}}`, `env.VAR` in `header_import`, `get_env()` in `python_code` — and which form belongs in which location is defined once in **`ai-rules/negotiation/env-vars.md`** §2. Read it before writing any env reference: a form used in the wrong location is sent as literal text.
 
 ### Auto-Generated Values (No Context Needed)
 

@@ -12,6 +12,7 @@ Creating or updating QA Flow **saved database queries** (SQL or NoSQL) in this r
 Before doing anything else, Read the matching file and follow it exactly:
 
 - **Query** (`save_query` / `update_query` / `duplicate_query` / `delete_query`) → [ai-rules/negotiation/query.md](ai-rules/negotiation/query.md)
+- **Env vars** in query values → [ai-rules/negotiation/env-vars.md](ai-rules/negotiation/env-vars.md)
 - **Any QA Flow MCP write** → also [ai-rules/safeguard.md](ai-rules/safeguard.md)
 
 The reference files in [ai-rules/reference/](ai-rules/reference/) (step-type guides, context wiring, selection format) are read on demand exactly when the negotiation rule tells you to.
@@ -21,7 +22,7 @@ The reference files in [ai-rules/reference/](ai-rules/reference/) (step-type gui
 1. **The query first, then one pre-negotiation tool call — the name-availability check.** If the request doesn't say what the query should do (pasted SQL/Mongo statement or a described lookup) and which kind it is (sql/mongo/definition), the FIRST response asks exactly that — zero tool calls; skip whichever half was already stated. Once purpose and kind are known, derive a candidate method name, call `list_queries` once to check it, and ask the name question — proposing the name if it's free, or suggesting 2–3 alternatives if it's taken (a collision always means a new name — never update the existing query as a fallback). Nothing else runs before negotiation — not `list_databases`, not `get_db_schema`, not `validate_sql`. "Gathering context first" beyond that single check is the forbidden pattern itself.
 2. **One topic per message.** High-stakes decisions (name+kind, database, destructive intent) get their own question; related low-priority parameters are grouped — target+operation in one message, **all parameters + return type in one table-style message**. Never bundle unrelated concerns or a multi-step plan into one reply. Wait for each answer.
 3. **Negotiate every concern** — kind (sql/mongo/definition), database, target, operation, query body, parameters, return type — even when a similar query already exists. Existing queries are reference only.
-4. **Never hardcode static literals.** Dynamic/test values become parameters; environment/secret values become env vars (`{{env.VAR}}`). Ask where each literal should live.
+4. **Never hardcode static literals.** Dynamic/test values become parameters; environment/secret values become env vars (`{{env.VAR}}`, per `env-vars.md`). Ask where each literal should live.
 5. **Flag destructive writes.** INSERT/UPDATE/DELETE/raw_sql (SQL) and Mongo `update` mutate real data — call it out and confirm intent + environment. `delete_query` fails when the query is still referenced (`used_in`) — surface the dependents, never force.
 6. **Get explicit confirmation before building.** Present the plan for confirmation only *after* every concern has been negotiated one question at a time. Validate SQL (`validate_sql`) before `save_query` — but do **not** run the saved query as part of the build.
 7. **After building, ask (as its own message) whether to smoke-test it** (`run_saved_query` / `test_query`) — never auto-run.

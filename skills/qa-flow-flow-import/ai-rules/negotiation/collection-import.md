@@ -3,7 +3,7 @@
 ## Scope
 These rules apply to **any AI assistant** whenever a user requests the **bulk import of a request collection** — a **Postman** collection (schema `.../collection/v2.x.x`) or a **Swagger / OpenAPI** spec (`swagger: 2.0` / `openapi: 3.x`) — into QA Flow **API definitions** using the `create_or_update_api` MCP tool.
 
-This rule governs the **bulk workflow**. It does **not** replace `negotiation/api.md` — it **composes with it**: every API this workflow produces must still conform to `api.md` (naming, test-case structure, the *Static Values → Env Vars* rule, content type). Read `api.md` alongside this file. All env-var creation and the per-batch confirmation obey `safeguard.md`.
+This rule governs the **bulk workflow**. It does **not** replace `negotiation/api.md` — it **composes with it**: every API this workflow produces must still conform to `api.md` (naming, test-case structure, content type). Read `api.md` alongside this file. Every env-var decision and write — variable mapping, secrets, existence checks, creation order, the restart step — follows `negotiation/env-vars.md`; the per-batch confirmation obeys `safeguard.md`.
 
 Use this rule when the source is a whole collection/spec (many requests). For a **single** cURL or one endpoint, use `negotiation/api.md` directly instead.
 
@@ -19,7 +19,7 @@ A collection can hold hundreds of requests across dozens of folders. Negotiating
 2. **Negotiate the *global* conventions once** — variable/URL mapping, auth, naming, test-case policy, batching — one topic per message.
 3. **Confirm a per-folder batch plan**, then build that folder's APIs. Repeat per folder.
 
-The **only** MCP tool permitted before a batch is built is the single `list_api_definitions` name-availability check for that batch (Step 4). No other MCP tool runs before negotiation — not `health_check`, not `get_api_definition`, not `manage_environment_variables` (env vars are created only after their mapping is confirmed, inside Step 5). "Gathering context first" beyond reading the file and that one listing is the forbidden pattern itself.
+The **only** MCP tool permitted before a batch is built is the single `list_api_definitions` name-availability check for that batch (Step 4), together with the targeted `get_api_definition(candidate)` confirmations that check requires (`reference/name-availability.md`) — those count as one check. No other MCP tool runs before negotiation — not `health_check`, not `get_api_definition` on anything other than a candidate name, not `manage_environment_variables` (env vars are created only after their mapping is confirmed, inside Step 5). "Gathering context first" beyond reading the file and that one listing is the forbidden pattern itself.
 
 Always go through the steps below in order.
 
@@ -51,11 +51,11 @@ This is a summary, not a question. Follow it immediately with Step 3's first que
 
 Ask these **one message at a time**, in order. Related low-priority settings are grouped into a single preset-menu question per `reference/selection-format.md`; never bundle unrelated topics. Wait for each answer. These answers become the **convention ledger** applied to every API in every batch — restate the ledger if the conversation is long enough that it scrolls out of view (`safeguard.md` Rule 7).
 
-1. **Variable / URL mapping.** Present the detected variables as a table and, for each, ask how it resolves — an env var placeholder, a literal, or a run-varying flow input. Follow `api.md`'s *Static Values → Env Vars* rule: base URLs **always** become `{{env.BASE_URL}}` (never a hardcoded host); tenants/client IDs/versions become env vars or confirmed literals; secrets become env vars.
+1. **Variable / URL mapping.** Present the detected variables as a table and, for each, ask how it resolves — an env var placeholder, a literal, or a run-varying flow input. Follow `negotiation/env-vars.md` (§3 placement, §4 naming, §5 secrets): base URLs **always** become `{{env.BASE_URL}}` (never a hardcoded host); tenants/client IDs/versions become env vars or confirmed literals; secrets become env vars.
    - Example resolutions (confirm, don't assume): `{{member-url}}` → `{{env.BASE_URL}}/api-gateway/member`; `{{version}}` → literal `v1`; `{{tenant}}` (+ any typo variant) → `{{env.TENANT}}`.
-   - **Flag every env var that does not yet exist** in the target environment — it must be created via `manage_environment_variables` in Step 5 **before** the APIs that reference it, or the dashboard rejects the `create_or_update_api` call.
+   - **Flag every env var that does not yet exist** — confirmed beyond a truncated `get_environment` listing, and in the **Default** environment for anything an API references (`env-vars.md` §6). It is created in Step 5 **before** the APIs that reference it, or the dashboard rejects the `create_or_update_api` call.
 
-2. **Authentication.** How should the request auth (Postman `auth: bearer {{token}}`, or an OpenAPI `securityScheme`) be handled — `{{env.TOKEN}}` (recommended, mark **sensitive** with a replace-me placeholder), a value a login flow extracts later, or a confirmed literal? One question.
+2. **Authentication.** How should the request auth (Postman `auth: bearer {{token}}`, or an OpenAPI `securityScheme`) be handled — `{{env.TOKEN}}` (recommended — written `sensitive: true`, its value collected masked in the conversation or deferred to a `REPLACE_ME` placeholder per `env-vars.md` §5), a value a login flow extracts later, or a confirmed literal? One question.
 
 3. **Naming convention.** Confirm how each request name maps to an API `snake_case` name (default: `action_resource`, e.g. *Get All Policies* → `get_all_policies`, *Assign Client Countries* → `assign_client_countries`), and how folder context participates when request names collide across folders (prefix vs suffix). Collisions with **existing** APIs are resolved per Step 4, never by overwrite.
 
@@ -71,7 +71,9 @@ Do not present a proposed plan or call any tool until all five are answered.
 
 For the current folder (batch), and **only now**:
 
-1. Call `list_api_definitions` **once** — the single name-availability check for this batch. Apply the naming convention to every request, then compare against existing names. On a collision, resolve to a **new name** (versioned/scoped alternative from `api.md`'s conventions) — **never overwrite** an existing API. Also flag near-collisions (same method + endpoint under a different name) so the user can reuse instead of duplicating.
+1. Call `list_api_definitions(names_only=True)` **once** — the single name-availability check for this batch. Apply the naming convention to every request, then compare against existing names. On a collision, resolve to a **new name** (versioned/scoped alternative from `api.md`'s conventions) — **never overwrite** an existing API. Also flag near-collisions (same method + endpoint under a different name) so the user can reuse instead of duplicating.
+
+   > ⚠️ **The listing proves a name is TAKEN, never that it is FREE** — results are size-capped, and a trimmed-away API reads exactly like a missing one. For every endpoint in the batch whose candidate name the listing does not show, confirm with a targeted `get_api_definition(candidate)`; a 404 is the only reliable evidence the name is free. Those targeted lookups belong to this same per-batch check. Full rule: `ai-rules/reference/name-availability.md`.
 2. Present the batch as a table: **request → `api_name`, method, resolved endpoint, promoted variables, content type, test case(s)**. List the env vars that will be created first and which are still placeholders.
 3. Ask: **"Build these N APIs from folder `<name>`, or change anything first?"** Do not build until the user confirms this batch.
 
@@ -81,7 +83,7 @@ For the current folder (batch), and **only now**:
 
 Only after the batch is confirmed:
 
-1. **Create any missing env vars first** via `manage_environment_variables` (follow `safeguard.md`) — the dashboard rejects a curl whose `{{env.VAR}}` isn't present in the environment.
+1. **Create any missing env vars first** via `manage_environment_variables`, under `negotiation/env-vars.md` §8 (the batch confirmation authorizes them; secrets masked and written `sensitive: true`) — the dashboard rejects a curl whose `{{env.VAR}}` isn't present. If the dashboard was already running before those variables were added, **restart it before the first `create_or_update_api`** (env-vars.md §6), naming the process in the batch confirmation.
 2. Call `create_or_update_api` **per request** in the batch, each conforming to `api.md`.
 
 Follow `safeguard.md` throughout this step.

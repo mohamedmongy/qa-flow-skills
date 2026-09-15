@@ -96,8 +96,10 @@ Delivery problems never mask a test failure: a failing run stays `1`.
 | `qa_testcases` | The generated pytest files — what actually runs |
 | `qa_apis` | Generated API wrapper classes |
 | `qa_userdata` | `global_data.py` — a path entry per artifact created |
+| `qa_userqueries` | Saved SQL/NoSQL query methods — what a flow's DB step calls |
 | `qa_configs` | `configs.yml` — data-source mapping per artifact |
-| `qa_storage` | Environments, jobs, load-test queue, uploaded assets |
+| `qa_storage` | Environments, jobs, load-test queue |
+| `qa_assets` | Uploaded test assets — what an API that posts a file reads |
 | `qa_testsuites` | Group and load-test result records |
 | `qa_reports` | HTML report, JSON summary, `junit.xml`, history |
 
@@ -113,6 +115,7 @@ Delivery problems never mask a test failure: a failing run stays `1`.
 | `no configuration file provided: not found` | No compose file here — likely a cloned `demo-qa-automation`, which hosts the image and is not a project. Scaffold with `qa-flow init` |
 | `pull access denied for qa-flow-dashboard` | The framework's compose file is in play (it builds from source, local tag). Run `qa-flow update` to restore the right one |
 | `qa_run.sh: executable file not found` | Same cause — a stale locally-built image with none of the runner scripts |
+| A script that plainly exists reports `no such file or directory` (`validate_container.sh`, `qa_run.sh`) while the dashboard stays `healthy` | CRLF line endings from a Windows checkout: the shebang reads as `/bin/sh\r`, and the error names the script, not the missing interpreter. The dashboard is unaffected because its CMD and healthcheck are Python. Confirm with `head -1 docker/scripts/validate_container.sh \| cat -A` (a trailing `^M`). Fix the checkout once — `git add --renormalize . && git checkout .` now that `.gitattributes` pins `*.sh` to LF — then rebuild; the Dockerfile also strips CR at build time |
 | `[+] Building` in a user project | Wrong folder or wrong compose file; only the framework's own compose builds |
 | Container `healthy` but the page won't load | The published port maps to a port nothing serves. In `host:container` the right side is always `5001` |
 | `echo "X=Y" >> .env` had no effect | No trailing newline in older scaffolds — it glued onto the last line. Use `printf '\nX=Y\n' >> .env` |

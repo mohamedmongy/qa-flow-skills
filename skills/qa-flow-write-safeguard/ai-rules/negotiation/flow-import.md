@@ -59,9 +59,11 @@ This rule explicitly permits **one read-only resolution batch** after the docume
 3. `list_api_definitions` — match each HTTP step against existing API definitions.
 4. `get_test_cases` — on each **matched** API, to check whether the document's named/implied test case exists.
 5. `get_flow` — on each **referenced subflow**, to verify it exists and its declared `inputs` match what the document passes.
-6. `get_environment` — existence check for every `{{env.*}}` the document references.
+6. `get_environment` — existence check for every `{{env.*}}` the document references (a truncated listing proves presence only — confirm absence per `negotiation/env-vars.md` §6).
 
 **No write tool, no `validate_*`, no run tool, and no other read tool runs before the final build confirmation.** Anything beyond this enumerated batch is the forbidden "gathering context first" pattern.
+
+> ⚠️ **Listings are size-capped and prove only that a name is TAKEN.** For every entity this import intends to **create**, confirm the name with its targeted lookup (`get_api_definition` / `get_query` / `get_flow` / `get_test_group`) — a 404 is the only reliable evidence the name is free. Prefer `names_only=True` on the name-check listings. These targeted lookups are part of this enumerated batch. Full rule: `ai-rules/reference/name-availability.md`.
 
 An existing entity counts as a **match** only when its content agrees with the document (same statement/params for a query; same method + endpoint for an API). Same name but different content is a **collision**, not a match.
 
@@ -112,7 +114,7 @@ If the user amends anything, update the ledger and **re-confirm** before buildin
 
 The summary's explicit "yes" authorizes the **whole chain** — no per-entity re-negotiation. Build strictly in this order, under `safeguard.md`:
 
-1. **Env vars** — `manage_environment_variables` for every missing `{{env.*}}` (values gathered during the loop; the dashboard rejects artifacts referencing absent env vars).
+1. **Env vars** — `manage_environment_variables` for every missing `{{env.*}}`, under `negotiation/env-vars.md` §8 (values gathered during the loop, secrets masked and written `sensitive: true`; the dashboard rejects artifacts referencing absent env vars). **Restart a dashboard that predates them before step 3** (env-vars.md §6), naming it in the Step 5 confirmation.
 2. **Saved queries** — `save_query` per `query.md`'s structure, then **smoke-test each immediately** (`test_query`). A failed smoke test **pauses the build**: report which query failed and why, mark the ledger checkpoint (✅ built / ⏸ pending), and wait for the user's decision (fix / skip the step / abort). Nothing downstream of the failure is built meanwhile.
 3. **API definitions** — `create_or_update_api` per `api.md`: `{{env.BASE_URL}}` endpoints, one test case from the document's payload + expected status, auth via `header_import` (never hardcoded tokens). Adding a test case to an existing API is **additive** — never touch its other test cases.
 4. **Sub-flows** — any missing subflow resolved via option (a) or (c) is created as its **own flow** (its full chain, depth-first — its queries/APIs precede it) before the parent, exporting the context keys the parent consumes. The parent references it as a `flow` step; its steps never merge into the parent.
