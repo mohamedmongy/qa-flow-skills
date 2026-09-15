@@ -102,6 +102,7 @@ Listing a negative case last exports its error body — or `None` — and silent
 | session_config header | `session_config.<headerName>` |
 | Environment variable | `env.<VAR_NAME>` |
 | Flow input | `flow_input.<inputName>` |
+| Dataset row column (data-driven flow) | `data.<column>` |
 
 ---
 
@@ -115,6 +116,7 @@ Use the full `{{context.<path>}}` syntax inside `payload`, `params`, and `query_
 | Flow input | `{{context.flow_input.inputName}}` |
 | Environment variable | `{{context.env.VAR_NAME}}` |
 | session_config header | `{{context.session_config.headerName}}` |
+| Dataset row column (data-driven flow) | `{{data.column}}` (or `{{context.data.column}}`) |
 
 ```json
 {
@@ -131,6 +133,10 @@ Use the full `{{context.<path>}}` syntax inside `payload`, `params`, and `query_
 ### Environment Variable Template Forms
 
 The full syntax for environment variables — `{{context.env.VAR}}`, `{{env.VAR}}`, `{{env.VAR|default}}`, the pinned `{{env.<slug>.VAR}}`, `env.VAR` in `header_import`, `get_env()` in `python_code` — and which form belongs in which location is defined once in **`ai-rules/negotiation/env-vars.md`** §2. Read it before writing any env reference: a form used in the wrong location is sent as literal text.
+
+### Dataset Row Values (Data-Driven Flows)
+
+When the flow carries a `dataset` binding, the current row is exported under the `data` prefix before any step runs: `{{data.<column>}}` in payload/params, `data.<column>` in `header_import` / `context_import`, `get_var('data.<column>')` in Python-code conditions. A string that is exactly `{{data.col}}` keeps the column's native type. See `ai-rules/reference/dataset-binding.md`.
 
 ### Auto-Generated Values (No Context Needed)
 

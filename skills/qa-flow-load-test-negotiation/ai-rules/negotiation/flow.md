@@ -226,6 +226,14 @@ You gave 3 static values — where should each live?  (1) flow input  (2) env va
 - Reference them with `{{context.env.VAR_NAME}}` in payloads/params/query inputs and `env.VAR_NAME` in `header_import.variable` (env-vars.md §2) — the `context.` prefix is required inside a flow.
 - Check each variable exists in the environment the flow runs in; a truncated `get_environment` listing proves presence only (env-vars.md §6). A missing one must be created before the build — name it and the environment it goes in, and collect any secret value per env-vars.md §5.
 
+### 2f — Dataset (Data-Driven Runs)
+> See `ai-rules/reference/dataset-binding.md` for the schema, placeholders, and result shape.
+
+- Ask: **"Should this flow run once per row of a dataset (data-driven)? Options: (1) no — run once · (2) an Assets Manager file (CSV / XLSX / JSON) · (3) a saved database query (each result row is one run) · (4) inline rows you give me now."**
+- If (2)/(3)/(4) → in the **same** follow-up message, group the low-priority settings: which asset / query method / rows, `on_row_failure` (`continue` default / `stop`), and any `limit` / `filter` / `types`. Then run `preview_dataset` once to show the columns and confirm which step fields use `{{data.<column>}}` (payload / params) or `data.<column>` (`header_import`). A declared flow input with the same name as a column is seeded per row automatically.
+- If (1) → no `dataset` field. Never assume a dataset from a request that merely mentions "several users" — ask.
+- A dataset never replaces negotiation of the steps: the rows only vary values the steps already reference.
+
 ---
 
 ## Asking Order — Sequential, Strictly — ONE TOPIC PER MESSAGE
@@ -237,7 +245,7 @@ Ask **one topic per message**. High-stakes decisions (which API, which test case
 The order per step is: work through the **full question set for that step's type as defined in 2b above** — e.g. the four messages for `api_call` (API, test case, overrides+delays, context wiring), the three for `query` — in the listed order, waiting for each answer. Do **not** stop after the API/test-case questions; the overrides, static-value, and wiring questions are part of the set.
 
 Complete every question for step N before moving to step N+1.
-Only after **all steps are fully negotiated**, ask the **flow-level configuration (2c + 2d + 2e) as ONE grouped message**: shared session (on by default — which `session_config` headers?), flow inputs, and env vars. By this point most of it is confirming what already accumulated from the static-value promotions — present it as a short checklist, not three separate interrogations.
+Only after **all steps are fully negotiated**, ask the **flow-level configuration (2c + 2d + 2e + 2f) as ONE grouped message**: shared session (on by default — which `session_config` headers?), flow inputs, env vars, and whether the flow runs over a dataset. By this point most of it is confirming what already accumulated from the static-value promotions — present it as a short checklist, not four separate interrogations. If the user picks a dataset source, its settings (2f) get one follow-up message of their own.
 
 ### ❌ Forbidden Patterns
 

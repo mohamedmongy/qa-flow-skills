@@ -77,6 +77,8 @@ Ask in this exact order, one message per question:
 3. **Assertions** — *"Do you have specific assertions to validate in the response (e.g. a body field, a message)?"* Wait for the answer. Do not skip this and do not add assertions speculatively.
 4. **Tags and priority** — *"Should test cases be tagged (e.g. smoke, positive, negative) and given a priority (high, medium, low)?"* Wait for the answer.
 
+Only when the user's scenarios describe **many variants of the same request** (e.g. "sign up 50 users from our spreadsheet", "one call per account in this table") add, as its own message: **"Should this case run once per row of a dataset (data-driven)? (1) no · (2) an Assets Manager file (CSV / XLSX / JSON) · (3) a saved database query · (4) inline rows"** — then group source, `on_row_failure`, and any `limit`/`filter`/`types` into one follow-up, run `preview_dataset` once to show the columns, and use `{{data.<column>}}` in that case's payload / params / expected values. See `ai-rules/reference/dataset-binding.md`. Do not offer a dataset for ordinary single-scenario cases.
+
 Do not ask about things the user already provided in the cURL or that the server already answered.
 
 Several Step 2 follow-ups are **small fixed choice sets** — the expected status of a negative case (400/401/403/…), tags, priority, and each static-value placement (env var vs literal). Present those as option menus per the selection format rule below (native picker where the client has one), seeding the options from the reference API's values when Step 1 found one. Only genuinely open questions (name, scenario descriptions, body assertions) stay free-text.
@@ -146,7 +148,8 @@ The authoritative schema is the `qa-flow://schemas/test-case` MCP resource (`mcp
   "assertions": [],
   "context_export": {},
   "tags": [],
-  "priority": "high"
+  "priority": "high",
+  "dataset": {"source": "asset", "ref": "users.csv", "on_row_failure": "continue"}
 }
 ```
 
@@ -160,6 +163,7 @@ The authoritative schema is the `qa-flow://schemas/test-case` MCP resource (`mcp
 - `context_export`: response values exported for later flow steps. **At the test-case level this is a dict** (`{"var_name": "response.path.to.value"}`), unlike the flow-step `context_export`, which is a list
 - `tags`: optional list of pytest markers — common ones: `smoke`, `regression`, `integration`, `negative`
 - `priority`: optional, values: `critical`, `high`, `medium`, `low`
+- `dataset`: optional — data-driven binding; the case runs once per row (asset file / saved query / inline rows) with `{{data.<column>}}` resolved in `payload`, `params`, `expected_status` and assertion values. Schema and rules: `ai-rules/reference/dataset-binding.md` (MCP resource `qa-flow://schemas/dataset`); preview with `preview_dataset`
 
 > ⚠️ **No per-test-case `headers` field.** The generator does **not** read a `headers` key on a test case — request headers come from the global `headers` map in `user_data/global_data.py`, merged with any flow-level `header_import` (and `session_config` when shared session is on). To vary a header per scenario (e.g. an `invalid_tenant` case), inject it through the flow step's `header_import`, not a test-case `headers` field. This mirrors the "no `headers` field on a step" rule in `ai-rules/reference/build-workflow.md`.
 

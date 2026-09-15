@@ -123,6 +123,7 @@
     { "id": "step-conditional-and-flow", "path": "reference/step-conditional-and-flow.md", "kind": "reference", "title": "conditional & flow step guide", "gated_tools": [] },
     { "id": "context-wiring", "path": "reference/context-wiring.md", "kind": "reference", "title": "Context export/import, header_import, env templates", "gated_tools": [] },
     { "id": "flow-structure", "path": "reference/flow-structure.md", "kind": "reference", "title": "Flow JSON structure and inputs", "gated_tools": [] },
+    { "id": "dataset-binding", "path": "reference/dataset-binding.md", "kind": "reference", "title": "Dataset binding — data-driven flows and test cases (asset / query / inline rows, {{data.*}})", "gated_tools": [] },
     { "id": "build-workflow", "path": "reference/build-workflow.md", "kind": "reference", "title": "Build sequence and common mistakes", "gated_tools": [] },
     { "id": "api-and-testcase-selection", "path": "reference/api-and-testcase-selection.md", "kind": "reference", "title": "API selection and test case discovery", "gated_tools": [] },
     { "id": "file-downloads", "path": "reference/file-downloads.md", "kind": "reference", "title": "File downloads from step responses", "gated_tools": [] },

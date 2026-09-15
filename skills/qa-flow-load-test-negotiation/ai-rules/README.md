@@ -9,7 +9,7 @@ This folder is the **single source of truth** for how ANY AI assistant must beha
 | [negotiation/](negotiation/) | The strict negotiate-before-you-build/run rules, one per domain (flow, api, collection-import, flow-import, test-group, query, load-test, report-dashboard, env-vars) |
 | [safeguard.md](safeguard.md) | Cross-cutting MCP write rules (Rules 1–7): tool-only edits, root-cause first, destructive-write confirms, context-loss recovery |
 | [operations/](operations/) | The layer *around* the artifacts: project setup, running plans locally / in containers / from CI, the pipeline job, image build and tag-driven publishing — with its own execution gate |
-| [reference/](reference/) | On-demand material the negotiation rules point to: step-type guides, context wiring, flow structure, selection/grouping format |
+| [reference/](reference/) | On-demand material the negotiation rules point to: step-type guides, context wiring, flow structure, dataset binding (data-driven runs), selection/grouping format |
 | [manifest.json](manifest.json) | Machine-readable index: every rule's id, path, kind, and the MCP tools it gates |
 
 ## How each assistant consumes this folder

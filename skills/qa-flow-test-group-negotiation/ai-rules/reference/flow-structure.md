@@ -20,6 +20,7 @@ A flow is a JSON object with these top-level fields:
 | `use_shared_session` | no | Set `true` when `session_config` is defined |
 | `session_config` | no | Object with a `headers` map — injected into every step |
 | `inputs` | no | Array of runtime input declarations |
+| `dataset` | no | Data-driven binding — the flow runs once per row (see `ai-rules/reference/dataset-binding.md`) |
 | `steps` | yes | Ordered array of step objects |
 | `expected_flow_execution_time` | no | Timeout hint in seconds |
 
@@ -29,6 +30,7 @@ Every step inside `steps` **must** have `"name"` and `"type"`. The step name bec
 
 - Step types → `ai-rules/reference/step-api-call.md`, `ai-rules/reference/step-query.md`, `ai-rules/reference/step-wait-until.md`, `ai-rules/reference/step-conditional-and-flow.md`
 - Context wiring, shared headers (`session_config`), and env vars → `ai-rules/reference/context-wiring.md`
+- Dataset binding (data-driven runs, `{{data.*}}`) → `ai-rules/reference/dataset-binding.md`
 - File downloads → `ai-rules/reference/file-downloads.md`
 - API / test-case selection → `ai-rules/reference/api-and-testcase-selection.md`
 - Build workflow → `ai-rules/reference/build-workflow.md`
