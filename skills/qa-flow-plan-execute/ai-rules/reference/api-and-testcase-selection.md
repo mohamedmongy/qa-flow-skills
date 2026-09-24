@@ -47,7 +47,7 @@ The name must match exactly what `get_test_cases` returns.
 ```
 
 - All test cases run sequentially on the same API instance, **in array order**
-- Each test case is sent with **its own payload/params** from the API definition — that is the point of selecting several (see the override rule below)
+- Each test case starts from **its own payload/params** from the API definition, but any key the step sets is sent to **every** selected test case (see the merge rule below) — so leave a key out of the step when test cases need different values for it
 - Context export uses the **last** test case's response ("last wins")
 - Step is marked **failed** if any single test case fails; the remaining test cases still run
 
@@ -96,9 +96,9 @@ Provide a `payload` on the step to override or supplement the test case's defaul
 }
 ```
 
-**Merge rule (single test case):** step-level `payload` keys take precedence over the test case's own payload keys. Both are merged, then `{{context.*}}` placeholders are resolved.
+**Merge rule (one or many test cases, `api_call` and `wait_until` alike):** step-level `payload` keys take precedence over the test case's own payload keys — a step value referencing `{{data.*}}` becomes the dataset row's value, a literal is sent as-is — and the test case fills only the keys the step does not set. Both are merged, then every placeholder (`{{data.*}}`, `{{context.*}}`, `{{env.*}}`, `{{auto.*}}`) is resolved, whether it came from the step or the test case. Overridden keys are logged at runtime (`🔀 Step payload overrides test case '…' value(s) for: …`).
 
-**Merge rule (multiple test cases):** each test case keeps its own payload; the step-level `payload` only fills in fields the test case does **not** define (e.g. `{{context.*}}` wiring shared by all of them). Fields the test case defines are kept and the skip is logged at runtime — otherwise every selected test case would be sent with one identical body.
+With several test cases selected, a step key therefore reaches **all** of them: a negative test case that relies on its own bad value must not have that key set on the step. The dashboard pre-fills the step's Payload box from the test case picked in *Single* mode — remove those copied keys before switching a step to several test cases.
 
 Same rules apply to `params` for GET/DELETE query string parameters.
 

@@ -11,7 +11,7 @@ A saved query is a reusable, parameterized DB method that flows reference from a
 | `mongo` | MongoDB | a Python method in `user_queries/mongo_queries.py` **and** a JSON definition in `code_generator/DataSources/query_definitions/` | MongoDB find/findOne/count/aggregate/update |
 | `definition` | MongoDB | a JSON definition only (no Python method) | a declarative Mongo query definition without generated code |
 
-> This rule governs **authoring** queries. Pure read/inspection (`list_queries`, `get_query`) is not gated. `test_query`, `validate_sql`, and `run_saved_query` are part of the build/smoke-test workflow below — they are used **during** Steps 1 and 4, never as the opening move.
+> This rule governs **authoring** queries. Pure read/inspection (`list_queries`, `get_query`) is not gated. Running a saved query **once per dataset row** is covered by *Data-driven runs* below. `test_query`, `validate_sql`, and `run_saved_query` are part of the build/smoke-test workflow below — they are used **during** Steps 1 and 4, never as the opening move.
 
 ---
 
@@ -161,6 +161,12 @@ The query "[method_name]" has been created successfully. Would you like me to sm
 
 ### Result access from a flow step
 - A `query` step exports under the **`result`** prefix (not `response`): `result.<field>` for a single record, `result[0].<field>` for arrays. After export it's referenced as `{{context.<step>.result.<field>}}`.
+
+### Data-driven runs — one execution per row
+- A saved query can be run **once per dataset row** (`run_saved_query(..., dataset={...}, dataset_mapping=[...], dataset_execution="sequential"|"parallel")`). This is **execute-only**: each row reports the rows it returned or the error it raised — never a pass/fail — so it is a bulk lookup, not a test. For a data check that belongs in a test group, a report or CI, put the query in a **one-step flow** and bind the dataset there.
+- The mapping rows are bare and parameter-shaped: `{"column": "<dataset column>", "destination": "query_params", "path": "<parameter name>"}`. Never write `{{data.*}}` into a query's SQL, filter or parameters — that placeholder belongs to flows and API test cases.
+- `run_saved_query` **never saves** a binding. A dataset saved on the query lives in its sidecar definition (`query_definitions/<name>.json`) and is bound from the dashboard's 📊 Run with data — say so rather than implying the tool persists it.
+- Details (naming-based inference, types, parallel connections): `ai-rules/reference/dataset-binding.md` → *Saved Queries*.
 
 ### Update & delete semantics
 - **`update_query`** replaces the query — for SQL pass the full new `sql_query`/`parameters`; for Mongo pass the full method `code`. Rename via `new_name`.

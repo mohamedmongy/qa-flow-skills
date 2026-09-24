@@ -58,6 +58,14 @@ Ask in this exact order, one message per question:
    ```
 
    Picking a preset is the explicit confirmation of every value in it — the **100-user default is never applied silently**; choosing `(3)` is what consents to it. On `Custom`, the user gives the values in one reply (`users`, `spawn_rate`, `duration` — accepts `30s`, `5m`, `1h`); ask only for missing pieces.
+2b. **Data — ONE grouped message, only when the target is data-driven.** Once the user count is known, call `preview_load_test_dataset` (read-only, same target arguments + `users`) — it reports, per item, `rows` (one row pinned per user), `none`, `plain` (no dataset) or `error` (rows cannot load). Skip this question when every item is `plain`. Otherwise explain that **each virtual user is pinned to one row** (user *i* → row *i mod N*) for all its iterations, show the row count, and **quote the warning verbatim when there are more users than rows** (rows — often accounts — are shared, which can cause session/lock collisions that look like server failures). Then ask — default: *as saved*:
+
+   ```
+   login_flow runs with 20 rows (users.csv) — each of the 50 users gets one row; 3 users share each row.
+   (1) Keep the saved dataset  (2) Another dataset for this load test  (3) Run without data (the flow's own values)  (4) Lower the user count to 20
+   ```
+
+   `(2)`/`(3)` become `dataset_override` on `start_load_test` — **single-target mode only**; a test group's items use their own `config.dataset_override` (change them under `ai-rules/negotiation/test-group.md`). For an **API** target the data belongs to ONE test case: ask which (`test_case`), since a data run needs exactly one. A `rows` item whose preview shows `error` fails every iteration — resolve it before starting.
 3. **Environment, and queue or run immediately?** Which environment / `BASE_URL` to run against (`environment_id`) — the default active environment, or a specific one from `list_environments`. The host is where all the traffic lands, so confirm it deliberately. In the same message, ask whether to add to the queue (`queue=true`, the default, FIFO single-worker) or start right now. **Note the constraint:** *immediate, non-queued* start (`queue=false`) works **only** for a test-group target — single-flow and single-api targets are always queued. If the user wants a single target to start instantly, that is `manage_load_test_queue` `promote` *after* enqueuing, not `queue=false`.
 
 > **Selection format rule:** small fixed choice sets → an inline numbered menu on one line — `(1) a  (2) b  (3) c`. Long lists of existing items → a numbered table/list, one option per line with a short identifying detail; show at most **20** (tell the user more exist and to just name theirs); prefix rows with `- [ ]` when several can be picked. Full rule, examples, and native structured-UI guidance: read `ai-rules/reference/selection-format.md` before presenting your first list.
@@ -70,6 +78,7 @@ Only after **all questions above are answered**, present the full summary:
 
 - **Target**: `test_group → <name>` *or* `flow → <name>` *or* `api → <name>`
 - **Load profile**: `users`, `spawn_rate` (users/sec), `duration`
+- **Data** (data-driven targets): per item — saved dataset / override / no data, row count, "one row pinned per user", and the users-per-row warning when present
 - **Environment**: the env name and the resolved `BASE_URL` it will hit — or "default active environment"
 - **Execution mode**: queued (and current queue depth, if known) or immediate
 - **Side effects you flagged** — e.g. *"a single-target stress test will create a persistent synthetic group `_stress_<type>_<name>.json`"*, or *"this group contains query items that will be skipped"*
@@ -90,6 +99,7 @@ Only after explicit user confirmation:
    - **Test-group target:** pass `test_group="<name>"`.
    - **Single-target:** pass `target_type="flow"|"api"` **and** `target_name="<name>"` (omit `test_group`). The server builds and persists a synthetic `_stress_<type>_<name>.json` group on the fly. `target_type` **must** be exactly `"flow"` or `"api"`; `"api"` is executed as a `test_suite` item, so `code_generator/TestCases/test_<name>.py` must exist.
    - Pass `users`, `spawn_rate`, `duration`, and `environment_id` exactly as negotiated.
+   - **Data (single-target only):** pass `test_case` for an API target run with data, and `dataset_override` when the user chose another dataset (`{"dataset": {…}}`) or no data (`{"use_dataset": false}`). The response's `dataset` entry repeats the per-item rows and warning — relay any warning.
    - `queue` defaults to `true` (returns a `job_id`). Use `queue=false` **only** for an immediate test-group run that the user explicitly asked to start now.
 3. Capture the returned `job_id` (queued mode). Follow all rules in `ai-rules/safeguard.md`.
 
@@ -119,6 +129,12 @@ Would you like me to monitor it and report when it finishes?
 ### What actually executes
 - The Locust runner executes only `flow` and `test_suite` items. **`query` items are silently ignored** — they never run and never appear in load-test stats. If a chosen group's value is in its queries, a load test is the wrong tool; say so.
 - A `flow` target imports `code_generator/APIs/user/<name>.py`; a `test_suite` / `api` target runs `code_generator/TestCases/test_<name>.py` via pytest. Both must already exist on disk (created through their own MCP tools).
+
+### Data-driven targets
+- A flow with a `dataset` (its own or adopted from a step's bound API case), or an API target with ONE bound `test_case`, is data-driven. Its rows are loaded **once** at test start and every virtual user is pinned to one row (`user i → row i mod N`) for all its iterations — a user never walks the whole dataset, so each iteration is one flow/case run, timed as one request.
+- More users than rows → rows are reused (the preview and the enqueue response carry the warning). Fewer users than rows → the extra rows are unused.
+- Row execution mode (`sequential`/`parallel`) is irrelevant here: concurrency comes from the users. An API item selecting several test cases keeps pytest's own row expansion (every row, every iteration) — prefer a single case.
+- `dataset_override` has the test-group item shape (`ai-rules/reference/dataset-binding.md` for the binding): `{"dataset": {…}, "mapping": [...]}` or `{"use_dataset": false, "data_values": {…}}`.
 
 ### Load parameters and their meaning
 - `users` (default **100**) — peak concurrent virtual users. The single most impactful knob; never assume it.

@@ -77,7 +77,11 @@ Repeatedly calls an API or saved query until a condition is satisfied or the tim
 
 ## Multiple Test Cases
 
-Like `api_call`, a `wait_until` step may select several test cases (`test_cases`). Each one is polled against the same condition **in array order**, each with its own full `timeout`/`interval` budget and its own payload/params.
+Like `api_call`, a `wait_until` step may select several test cases (`test_cases`). Each one is polled against the same condition **in array order**, each with its own full `timeout`/`interval` budget.
+
+**Attempt cap:** each poll request is capped at the time left in the step's `timeout`, so a hung call cannot outlive the polling window (it fails that attempt and the wait times out normally). The cap lives in the engine, so existing flows get it without being regenerated. A project-wide default for every other request comes from the `QA_FLOW_HTTP_TIMEOUT` env var (unset = no cap). DB polling has no equivalent cap.
+
+**Payload / params:** same merge rule as `api_call` — step `payload`/`params` keys win over each polled test case's own keys (`{{data.*}}` → row value, literal → as-is), the test case fills the rest, and all placeholders (`{{data.*}}`, `{{context.*}}`, `{{env.*}}`, `{{auto.*}}`) are resolved once before polling, so every attempt sends the same request.
 
 **Order matters:** exports follow the same **last wins** rule — only the last polled test case's response reaches `<step>.<field>`, so list the test case whose response later steps consume last. The step is marked **failed** if any test case times out or errors (the remaining test cases still run).
 

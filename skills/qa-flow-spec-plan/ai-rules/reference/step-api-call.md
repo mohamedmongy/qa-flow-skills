@@ -40,7 +40,7 @@ The most common step type. Executes one or more test cases from an existing API 
 
 ## Multiple Test Cases — Order Matters, "Last Wins"
 
-When `test_cases` is an array, all test cases run sequentially **in the order listed**, each with **its own payload** from the API definition — that is the point of selecting several. A step-level `payload` cannot describe them all, so it only supplements fields the test case itself does not define (see the merge order below).
+When `test_cases` is an array, all test cases run sequentially **in the order listed**, each starting from **its own payload** in the API definition. A key set in the step-level `payload` wins over **every** selected test case (a `{{data.*}}` value resolves to the row, a literal is sent as-is — see the merge order below), so keep keys that must differ per test case (e.g. a negative case's bad password) out of the step.
 
 Each test case's response overwrites the previous export, so only the **last** test case's response reaches `<step>.<field>` and every later step reads that one. **Put the test case whose response the flow consumes last.** The step is marked **failed** if any test case fails (the rest still run), regardless of order.
 
