@@ -72,7 +72,7 @@ Based on the user's cURL and the server context, identify only the gaps that are
 
 Ask in this exact order, one message per question:
 
-1. **Name** — What should this API be called? Ask it with the Step 1 availability result already in hand: if the detected candidate is **free**, present it as the recommended one-tap option alongside a free-text alternative — e.g. `(1) get_csrf_token (recommended, available)  (2) type your own`; if it **collides**, present the Step 1 alternatives instead. Never claim a name is available without the Step 1 check, and never proceed with a name that already exists. Wait for the answer before continuing.
+1. **Name** (with a drafted description) — What should this API be called? Ask it with the Step 1 availability result already in hand: if the detected candidate is **free**, present it as the recommended one-tap option alongside a free-text alternative — e.g. `(1) get_csrf_token (recommended, available)  (2) type your own`; if it **collides**, present the Step 1 alternatives instead. Never claim a name is available without the Step 1 check, and never proceed with a name that already exists. In the **same message**, propose a one-sentence **description** you drafted from the cURL and the user's words, and mention the optional **note** (the user's own checklist, shown with every run result) — per `ai-rules/reference/description-and-note.md`. Wait for the answer before continuing.
 2. **Test cases** — Ask in plain English: *"What scenarios should this API cover? e.g. successful export, invalid GUID, missing token — describe them however you like."* Wait for the answer. Derive status codes and overrides from the answer. Do not invent scenarios.
 3. **Assertions** — *"Do you have specific assertions to validate in the response (e.g. a body field, a message)?"* Wait for the answer. Do not skip this and do not add assertions speculatively.
 4. **Tags and priority** — *"Should test cases be tagged (e.g. smoke, positive, negative) and given a priority (high, medium, low)?"* Wait for the answer.
@@ -102,6 +102,7 @@ Inside an API definition the form is `{{env.VAR_NAME}}` (env-vars.md §2). A var
 Only after **all four questions above have been answered**, present the full summary:
 
 - API name, method, and endpoint URL
+- **Description** and **note** — or "none" (`ai-rules/reference/description-and-note.md`)
 - Each test case: identifier (`test_case`), description, expected status, assertions, payload/params overrides, tags, priority
 - **Static values promoted** — for each config/secret literal from the cURL, state whether it became an env var (and which one, noting any that must still be created) or was intentionally kept literal
 
@@ -113,7 +114,7 @@ Do not proceed until the user explicitly confirms. If the user requests any chan
 
 ## Step 4 — Build
 
-Only after explicit user confirmation, call `create_or_update_api` with the agreed parameters.
+Only after explicit user confirmation, call `create_or_update_api` with the agreed parameters — including `description` / `note` when the user kept or gave one.
 
 Follow the rules in `ai-rules/safeguard.md` during this step.
 

@@ -7,14 +7,19 @@
       "path": "negotiation/flow.md",
       "kind": "negotiation",
       "title": "Flow negotiation rule",
-      "gated_tools": ["create_flow", "update_flow"]
+      "gated_tools": [
+        "create_flow",
+        "update_flow"
+      ]
     },
     {
       "id": "api-negotiation",
       "path": "negotiation/api.md",
       "kind": "negotiation",
       "title": "API definition negotiation rule",
-      "gated_tools": ["create_or_update_api"]
+      "gated_tools": [
+        "create_or_update_api"
+      ]
     },
     {
       "id": "collection-import",
@@ -42,28 +47,45 @@
       "path": "negotiation/test-group.md",
       "kind": "negotiation",
       "title": "Test group negotiation rule",
-      "gated_tools": ["create_test_group", "update_test_group", "modify_test_group_items"]
+      "gated_tools": [
+        "create_test_group",
+        "update_test_group",
+        "modify_test_group_items"
+      ]
     },
     {
       "id": "query-negotiation",
       "path": "negotiation/query.md",
       "kind": "negotiation",
       "title": "Database query negotiation rule",
-      "gated_tools": ["save_query", "update_query", "duplicate_query", "delete_query"]
+      "gated_tools": [
+        "save_query",
+        "update_query",
+        "duplicate_query",
+        "delete_query"
+      ]
     },
     {
       "id": "load-test-negotiation",
       "path": "negotiation/load-test.md",
       "kind": "negotiation",
       "title": "Load test negotiation rule",
-      "gated_tools": ["start_load_test", "manage_load_test_queue"]
+      "gated_tools": [
+        "start_load_test",
+        "manage_load_test_queue"
+      ]
     },
     {
       "id": "report-dashboard-negotiation",
       "path": "negotiation/report-dashboard.md",
       "kind": "negotiation",
       "title": "Report dashboard negotiation rule",
-      "gated_tools": ["manage_releases", "test_group_releases", "export_test_group_results", "clear_analytics_cache"]
+      "gated_tools": [
+        "manage_releases",
+        "test_group_releases",
+        "export_test_group_results",
+        "clear_analytics_cache"
+      ]
     },
     {
       "id": "env-var-negotiation",
@@ -71,8 +93,11 @@
       "kind": "negotiation",
       "title": "Environment variables rule — syntax, placement, secrets, existence, create-before-use, restart step; gates environment writes and is referenced by every rule that touches env vars",
       "gated_tools": [
-        "manage_environment_variables", "create_environment", "update_environment",
-        "delete_environment", "set_environment_db_connection"
+        "manage_environment_variables",
+        "create_environment",
+        "update_environment",
+        "delete_environment",
+        "set_environment_db_connection"
       ]
     },
     {
@@ -81,12 +106,23 @@
       "kind": "safeguard",
       "title": "MCP safeguard rules (all writes; Rule 6 covers destructive/uncovered tools)",
       "gated_tools": [
-        "delete_flow", "duplicate_flow", "restore_flow_backup",
-        "delete_api_definition", "duplicate_api",
-        "delete_test_group", "copy_test_group",
-        "upload_asset", "manage_asset", "manage_prerequisite_template",
-        "clear_jobs", "generate_test_suite",
-        "execute_test_group", "run_test_suite", "run_multiple_suites", "run_api", "run_test_case"
+        "delete_flow",
+        "duplicate_flow",
+        "restore_flow_backup",
+        "delete_api_definition",
+        "duplicate_api",
+        "delete_test_group",
+        "copy_test_group",
+        "upload_asset",
+        "manage_asset",
+        "manage_prerequisite_template",
+        "clear_jobs",
+        "generate_test_suite",
+        "execute_test_group",
+        "run_test_suite",
+        "run_multiple_suites",
+        "run_api",
+        "run_test_case"
       ]
     },
     {
@@ -114,22 +150,107 @@
       "id": "name-availability",
       "path": "reference/name-availability.md",
       "kind": "reference",
-      "title": "Name availability \u2014 a listing proves TAKEN, never FREE; targeted get_* confirmation",
+      "title": "Name availability — a listing proves TAKEN, never FREE; targeted get_* confirmation",
       "gated_tools": []
     },
-    { "id": "step-api-call", "path": "reference/step-api-call.md", "kind": "reference", "title": "api_call step guide", "gated_tools": [] },
-    { "id": "step-query", "path": "reference/step-query.md", "kind": "reference", "title": "query step guide", "gated_tools": [] },
-    { "id": "step-wait-until", "path": "reference/step-wait-until.md", "kind": "reference", "title": "wait_until step guide", "gated_tools": [] },
-    { "id": "step-conditional-and-flow", "path": "reference/step-conditional-and-flow.md", "kind": "reference", "title": "conditional & flow step guide", "gated_tools": [] },
-    { "id": "context-wiring", "path": "reference/context-wiring.md", "kind": "reference", "title": "Context export/import, header_import, env templates", "gated_tools": [] },
-    { "id": "flow-structure", "path": "reference/flow-structure.md", "kind": "reference", "title": "Flow JSON structure and inputs", "gated_tools": [] },
-    { "id": "dataset-binding", "path": "reference/dataset-binding.md", "kind": "reference", "title": "Dataset binding — data-driven flows and test cases (asset / query / inline rows, {{data.*}})", "gated_tools": [] },
-    { "id": "build-workflow", "path": "reference/build-workflow.md", "kind": "reference", "title": "Build sequence and common mistakes", "gated_tools": [] },
-    { "id": "api-and-testcase-selection", "path": "reference/api-and-testcase-selection.md", "kind": "reference", "title": "API selection and test case discovery", "gated_tools": [] },
-    { "id": "file-downloads", "path": "reference/file-downloads.md", "kind": "reference", "title": "File downloads from step responses", "gated_tools": [] },
-    { "id": "steps-doc-format", "path": "reference/steps-doc-format.md", "kind": "reference", "title": "Steps-document format for one-shot flow import", "gated_tools": [] },
-    { "id": "run-plans", "path": "reference/run-plans.md", "kind": "reference", "title": "Run plans, environments, channels, exit codes, failure triage", "gated_tools": [] },
-    { "id": "build-plan-format", "path": "reference/build-plan-format.md", "kind": "reference", "title": "Build plan format (spec \u2192 plan \u2192 execution contract)", "gated_tools": [] }
+    {
+      "id": "description-and-note",
+      "path": "reference/description-and-note.md",
+      "kind": "reference",
+      "title": "Description and note — assistant drafts the description in the name question; the note is the user's own checklist",
+      "gated_tools": []
+    },
+    {
+      "id": "step-api-call",
+      "path": "reference/step-api-call.md",
+      "kind": "reference",
+      "title": "api_call step guide",
+      "gated_tools": []
+    },
+    {
+      "id": "step-query",
+      "path": "reference/step-query.md",
+      "kind": "reference",
+      "title": "query step guide",
+      "gated_tools": []
+    },
+    {
+      "id": "step-wait-until",
+      "path": "reference/step-wait-until.md",
+      "kind": "reference",
+      "title": "wait_until step guide",
+      "gated_tools": []
+    },
+    {
+      "id": "step-conditional-and-flow",
+      "path": "reference/step-conditional-and-flow.md",
+      "kind": "reference",
+      "title": "conditional & flow step guide",
+      "gated_tools": []
+    },
+    {
+      "id": "context-wiring",
+      "path": "reference/context-wiring.md",
+      "kind": "reference",
+      "title": "Context export/import, header_import, env templates",
+      "gated_tools": []
+    },
+    {
+      "id": "flow-structure",
+      "path": "reference/flow-structure.md",
+      "kind": "reference",
+      "title": "Flow JSON structure and inputs",
+      "gated_tools": []
+    },
+    {
+      "id": "dataset-binding",
+      "path": "reference/dataset-binding.md",
+      "kind": "reference",
+      "title": "Dataset binding — data-driven flows and test cases (asset / query / inline rows, {{data.*}})",
+      "gated_tools": []
+    },
+    {
+      "id": "build-workflow",
+      "path": "reference/build-workflow.md",
+      "kind": "reference",
+      "title": "Build sequence and common mistakes",
+      "gated_tools": []
+    },
+    {
+      "id": "api-and-testcase-selection",
+      "path": "reference/api-and-testcase-selection.md",
+      "kind": "reference",
+      "title": "API selection and test case discovery",
+      "gated_tools": []
+    },
+    {
+      "id": "file-downloads",
+      "path": "reference/file-downloads.md",
+      "kind": "reference",
+      "title": "File downloads from step responses",
+      "gated_tools": []
+    },
+    {
+      "id": "steps-doc-format",
+      "path": "reference/steps-doc-format.md",
+      "kind": "reference",
+      "title": "Steps-document format for one-shot flow import",
+      "gated_tools": []
+    },
+    {
+      "id": "run-plans",
+      "path": "reference/run-plans.md",
+      "kind": "reference",
+      "title": "Run plans, environments, channels, exit codes, failure triage",
+      "gated_tools": []
+    },
+    {
+      "id": "build-plan-format",
+      "path": "reference/build-plan-format.md",
+      "kind": "reference",
+      "title": "Build plan format (spec → plan → execution contract)",
+      "gated_tools": []
+    }
   ],
   "adapters": {
     "claude": ".claude/skills/ + CLAUDE.md",

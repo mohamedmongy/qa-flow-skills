@@ -42,7 +42,7 @@ Use this context to inform your questions, not to skip them.
 Ask in this exact order, one message per question:
 
 1. **Which items should the group bundle?** — Asked open-ended and with **zero tool calls**: *"Which flows or test suites should this group bundle — and in what order?"* **Skip this question entirely when the request already names the items** — never re-ask for what was provided.
-2. **Name and description** — Asked with the availability check already run (derive a concise `snake_case` candidate from the contents/purpose, call `list_test_groups` — the single pre-negotiation tool call): if the candidate is **free**, propose it as the recommended option plus a one-sentence description and ask the user to confirm or change it; if it **already exists**, tell the user and offer **2–3 alternatives** (versioned suffix, more specific purpose word) plus free text — never an "update the existing group" fallback. If the user's own free-text name also collides, re-check before moving on; only a unique name settles this question.
+2. **Name and description** — Asked with the availability check already run (derive a concise `snake_case` candidate from the contents/purpose, call `list_test_groups` — the single pre-negotiation tool call): if the candidate is **free**, propose it as the recommended option plus a one-sentence description (and mention the optional **note** — the user's own checklist, shown at the top of every run result; see `ai-rules/reference/description-and-note.md`) and ask the user to confirm or change it; if it **already exists**, tell the user and offer **2–3 alternatives** (versioned suffix, more specific purpose word) plus free text — never an "update the existing group" fallback. If the user's own free-text name also collides, re-check before moving on; only a unique name settles this question.
 3. **Confirm items and order — ONE grouped message.** After Step 1's context gather, verify the named items against `get_test_group_available_items` and present them back as a numbered list (laid out per the Selection format rule), grouped by type — e.g. `Flows: (1) login_flow  (2) checkout_flow   Suites: (3) test_login` — confirming exact names **and** execution order (the order they replied in is the proposed order — confirm it in the plan). **If a needed flow or suite does not exist**, it must be created first under its own rule (`ai-rules/negotiation/flow.md` for flows, `ai-rules/negotiation/api.md` for APIs/suites) — never invent an item name. If the user names a saved query, explain it cannot be an item and offer a one-step flow that runs it.
 3b. **Data for data-driven items — ONE grouped message, only when an item is data-driven.** A flow with a `dataset` (its own, or adopted from a step's bound API test case), or an API item whose ONE selected test case carries a `dataset`, runs once per row in the group. Check each confirmed item (`get_flow` / `get_test_cases`) and, if any is data-driven, list them with what is saved and ask what this group should do — default: *as saved*:
 
@@ -73,6 +73,7 @@ Ask in this exact order, one message per question:
 Only after **all questions above are answered**, present the full summary:
 
 - **Group name** and description
+- **Note** — or "none"
 - **Items in order**: each as `type → name` (e.g. `flow → login_flow`, `test_suite → test_checkout`), with its data for data-driven items (`as saved: users.csv` / `override: inline 3 rows, parallel ×3` / `no data`)
 - **Execution config**: `stop_on_failure`, `dry_run`
 - **Release** tag — or "none"
@@ -90,7 +91,7 @@ Do not proceed until the user explicitly confirms. If the user requests a change
 Only after explicit user confirmation:
 
 1. Confirm **every item exists** (`get_test_group_available_items`). Create any missing flow/suite first under its own negotiation rule.
-2. Call `create_test_group` with the agreed `name`, `description`, `items`, `release`, `tags`, and `execution_config`.
+2. Call `create_test_group` with the agreed `name`, `description`, `note` (when given), `items`, `release`, `tags`, and `execution_config`.
    - Pass each item as just `{ "type", "name" }` (add `config.parameters` only when the flow needs input values — see *Item Structure*). The server **auto-generates** `id`, `order`, `description`, and `config` for every item, so you never hand-build them.
    - **For updates:** call `get_test_group` first, modify the complete group object, then send it all back via `update_test_group` — it replaces the entire definition. Use `modify_test_group_items` for incremental add / reorder / remove.
 3. Call `validate_test_group` before executing — catch missing or malformed items early.

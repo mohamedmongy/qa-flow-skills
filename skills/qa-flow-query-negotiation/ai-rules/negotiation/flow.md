@@ -74,7 +74,7 @@ Work through each concern below by asking the user directly. Do **not** assume �
 > ⚠️ **A listing proves a name is TAKEN, never that it is FREE** — results are size-capped, so an artifact trimmed out of the listing reads exactly like one that does not exist. Prefer `list_flows(names_only=True)`, and confirm any name you intend to create with a targeted `get_flow(name)` (404 = genuinely free). That lookup is part of this same permitted check. Full rule: `ai-rules/reference/name-availability.md`.
 - **Name is free** → ask: **"I suggest naming this flow `<proposed_name>` — '<proposed_description>'. Does that work, or would you like a different name or description?"**
 - **Name already exists** → a collision **always** resolves to creating a new flow under a **new name** — never overwrite or update the existing flow as a fallback (updating is a separate, explicit user request). Tell the user it exists and offer **2–3 alternatives** (versioned suffix like `login_with_otp_v2`, or a more specific purpose word) plus a free-text option, e.g. `(1) login_with_otp_v2  (2) login_with_url_otp_check  (3) type another name`.
-- Keep the description to one sentence explaining what the flow does end-to-end.
+- Keep the description to one sentence explaining what the flow does end-to-end; its **first line** is what `list_flows` shows. In the same message, mention the optional **note** (the user's own checklist, shown with every run result) — see `ai-rules/reference/description-and-note.md`.
 - Wait for the user to confirm or provide their own name/description before moving on; if their free-text name also collides, re-check before continuing.
 
 ### 2b — Steps — Per-Step-Type Negotiation Questions
@@ -280,6 +280,7 @@ Agent:  Moving to step 2 — which API should we use? Here are the options: ...
 After all steps are negotiated, present a complete summary:
 
 - **Flow name** and description
+- **Note** — or "none"
 - **Inputs** declared (name, type, default) — or "none"
 - **Session config** headers — or "none"
 - **Steps in order**:

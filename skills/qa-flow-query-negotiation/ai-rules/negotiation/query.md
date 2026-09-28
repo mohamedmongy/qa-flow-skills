@@ -51,7 +51,7 @@ Use this context to inform your questions, not to skip them.
 Ask in this exact order, one message per question (skip a question only when the user has already stated that detail unambiguously):
 
 1. **What & kind — ONE grouped message.** Asked open-ended and with **zero tool calls**: *"What should this query do — paste the SQL / Mongo filter, or describe the lookup — and is it (1) SQL (PostgreSQL)  (2) Mongo (generates a Python method)  (3) Mongo definition (JSON only)?"* **Skip whichever half the request already states** — never re-ask for what was provided.
-2. **Name** — Asked with the availability check already run (derive a concise `snake_case` candidate from the action, e.g. `get_user_by_email`, `count_active_subscriptions`, and call `list_queries` — the single pre-negotiation tool call): if the candidate is **free**, propose it as the recommended option alongside free text; if it **already exists**, tell the user and offer **2–3 alternatives** (versioned suffix, more specific action word) plus free text — never an "update the existing query" fallback. The name must match `^[a-zA-Z_][a-zA-Z0-9_]*$`; if the user's own free-text name also collides, re-check before moving on.
+2. **Name** — Asked with the availability check already run (derive a concise `snake_case` candidate from the action, e.g. `get_user_by_email`, `count_active_subscriptions`, and call `list_queries` — the single pre-negotiation tool call): if the candidate is **free**, propose it as the recommended option alongside free text; if it **already exists**, tell the user and offer **2–3 alternatives** (versioned suffix, more specific action word) plus free text — never an "update the existing query" fallback. The name must match `^[a-zA-Z_][a-zA-Z0-9_]*$`; if the user's own free-text name also collides, re-check before moving on. In the **same message**, propose a one-sentence **description** of what the query returns or changes, and mention the optional **note** (the user's own checklist, shown with every run result) — per `ai-rules/reference/description-and-note.md`.
 3. **Which database?** Present the connected databases from `list_databases` as a numbered list (laid out per the Selection format rule) and ask which one. The name becomes the query's `database`. **If the intended database is not connected**, stop and surface that — never guess a connection name.
 4. **Target & operation — ONE grouped message.**
    - *SQL:* which table(s)/schema (confirm against `get_db_schema`), and does the statement **read or write**? (`query_type` is **ALWAYS `raw_sql`** — do not offer or pick any other SQL type. `raw_sql` routes through `execute_raw_sql`, which handles **every** PostgreSQL statement: `SELECT` (returns rows), `INSERT`/`UPDATE`/`DELETE` (returns rowcount), CTEs, window functions, subqueries, `CALL` stored procedures, `DO $$…$$` anonymous blocks, and DDL. The `return_type` is what shapes the result, not the query type — so don't ask "which SQL type", just the read-or-write question for the destructive-write guard.)
@@ -90,6 +90,7 @@ Ask in this exact order, one message per question (skip a question only when the
 Only after **all questions above are answered**, present the full summary:
 
 - **Method name**, **kind** (`sql` / `mongo` / `definition`), and **database**
+- **Description** and **note** — or "none" (`ai-rules/reference/description-and-note.md`)
 - **Target**: table(s)/schema (SQL) or collection (Mongo)
 - **Operation / query_type** and the **query body** (the SQL, or the filter/projection/pipeline)
 - **Parameters**: each as `name : type (required|optional)` and which placeholder it binds
@@ -114,6 +115,7 @@ Only after explicit user confirmation:
    - **`kind='mongo'`** → `database`, `collection`, `operation`, `filter` (and `projection`, or `pipeline` for aggregate), `parameters`.
    - **`kind='definition'`** → `method_name`, `collection`, `operation`, `filter`, `projection`, `return_type`, `parameters` (JSON definition only, no Python method).
    - `parameters` format: `[{ "name": ..., "type": ..., "required": true|false }]`.
+   - Any kind: `description` / `note` when the user kept or gave one (stored next to the query, not in its code). To change only those on an existing query: `update_query(query_name, kind='meta', description=…, note=…)`.
    - **For updates:** use `update_query` (`kind='sql'` → pass `database`/`sql_query`/`return_type`/`parameters`, optional `new_name`; `kind='mongo'` → pass the full replacement method `code`).
 3. Do **not** smoke-test automatically — saving is where the build stops. Offer the smoke test as its own question in Step 5. (When the user accepts, `run_saved_query` / `test_query` results are capped at ~50 rows with `total_rows` preserved.)
 4. Follow all rules in `ai-rules/safeguard.md` — **never** hand-edit `user_queries/*.py` or the `query_definitions/*.json`; the Query Builder owns those files.
