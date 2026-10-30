@@ -49,7 +49,7 @@ Whenever a value would otherwise be **hardcoded** — a payload field, query par
 | Kind of value | Examples | Recommend | Reference |
 |---|---|---|---|
 | **Environment-specific / shared config** | base URLs and hosts, client / tenant / status IDs, feature flags | **env var** | `{{env.VAR}}` in an API, `{{context.env.VAR}}` in a flow |
-| **Secret** (§5) | tokens, passwords, API keys, `Authorization` values, DB credentials | **env var**, `sensitive: true` | same as above — or a value exported by a login step (`header_import`) |
+| **Secret** (§5) | tokens, passwords, API keys, `Authorization` values, DB credentials | **env var**, `sensitive: true` | same as above — or a value exported by a login step (`header_import`) — or, for a short-lived token shared by many APIs, a **global value** (`negotiation/global-values.md`) |
 | **Run-varying test data** | user IDs, GUIDs, phone numbers, amounts, emails | **flow input** | `{{context.flow_input.X}}` (`reference/flow-structure.md`) |
 | **Genuinely constant everywhere** | an API version segment, a fixed enum | literal — **only after the user confirms** | — |
 
@@ -79,7 +79,7 @@ Rules that always hold:
 
 - a name containing `PASSWORD`, `PASSWD`, `SECRET`, `API_KEY` / `APIKEY`, `PRIVATE_KEY`, `CREDENTIAL`, or `WEBHOOK`;
 - a name containing `TOKEN` — **unless** its last segment is structural (`DB_TOKEN_HOST`, `DB_TOKEN_PORT`, `DB_TOKEN_USER`, … are connection metadata, not credentials);
-- any `Authorization` header value, and any value that embeds credentials in a URI (`mongodb://user:password@host`) whatever the variable is called.
+- any `Authorization` header value, and any value that embeds credentials in a URI (a `mongodb://…@host` connection string carrying `user:password` before the `@`) whatever the variable is called.
 
 **How a secret value gets in:**
 

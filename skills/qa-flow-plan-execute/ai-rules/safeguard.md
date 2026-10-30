@@ -64,6 +64,7 @@ The negotiation rules cover *creating/updating* flows, APIs, queries, test group
 
 - **Deletes / duplicates / restores:** `delete_flow`, `delete_api_definition`, `delete_test_group`, `duplicate_flow`, `duplicate_api`, `copy_test_group`, `restore_flow_backup`
 - **Assets:** `upload_asset`, `manage_asset` (write actions)
+- **Schemes & app releases:** `manage_scheme`, `manage_app_release` (`create` / `update` / `delete`) — shared project data every ui step targets; a scheme edit (apps, default release) or an edit of its default release changes what every run of the scheme's ui steps uses, so name those steps (the scheme's `used_by` from `list_app_releases`) in the confirmation
 - **Prerequisite templates:** `manage_prerequisite_template` (`create` / `update` / `duplicate` / `delete`) — shared project data every API run can name
 - **Job history:** `clear_jobs` — irreversible; it erases the run records the report dashboard is built on
 - **Direct executions of existing artifacts:** `execute_test_group`, `run_test_suite`, `run_multiple_suites`, `run_api`, `run_test_case` — real traffic against a real environment

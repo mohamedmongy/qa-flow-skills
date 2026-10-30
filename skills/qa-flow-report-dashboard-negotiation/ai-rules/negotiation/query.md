@@ -160,6 +160,7 @@ The query "[method_name]" has been created successfully. Would you like me to sm
 
 ### Env vars & placeholders
 - Query **values** support `{{env.VAR_NAME}}` and `{{env.VAR_NAME|default}}` — resolved by `test_query` / at run time for the `environment_id` in play, **not** at definition time. Placement, naming, secrets, and existence checks follow `ai-rules/negotiation/env-vars.md`.
+- Parameter values may also be `{{global.KEY}}` (a shared value from the Global Values store — `negotiation/global-values.md`), resolved when the query runs: `run_saved_query` (pass `environment_id` to pick the environment for `{{env.*}}`; Default otherwise), a flow `query` step, `test_query`. An unknown key fails the run with "unknown global value".
 
 ### Result access from a flow step
 - A `query` step exports under the **`result`** prefix (not `response`): `result.<field>` for a single record, `result[0].<field>` for arrays. After export it's referenced as `{{context.<step>.result.<field>}}`.

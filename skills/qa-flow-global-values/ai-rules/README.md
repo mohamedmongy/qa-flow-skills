@@ -1,0 +1,34 @@
+# ai-rules/ — Assistant-Neutral QA Flow Rules (Source of Truth)
+
+This folder is the **single source of truth** for how ANY AI assistant must behave when driving the QA Flow MCP server — negotiating before building flows, APIs, test groups, and queries, before firing load tests, and before mutating the report dashboard. The rules are assistant-neutral: Kiro, Claude Code, GitHub Copilot, Cursor, Codex, and any future assistant all follow **these same files**.
+
+## Layout
+
+| Path | What it is |
+|---|---|
+| [negotiation/](negotiation/) | The strict negotiate-before-you-build/run rules, one per domain (flow, api, collection-import, flow-import, test-group, query, load-test, report-dashboard, env-vars) |
+| [safeguard.md](safeguard.md) | Cross-cutting MCP write rules (Rules 1–7): tool-only edits, root-cause first, destructive-write confirms, context-loss recovery |
+| [operations/](operations/) | The layer *around* the artifacts: project setup, running plans locally / in containers / from CI, the pipeline job, image build and tag-driven publishing — with its own execution gate |
+| [reference/](reference/) | On-demand material the negotiation rules point to: step-type guides, context wiring, flow structure, dataset binding (data-driven runs), selection/grouping format |
+| [manifest.json](manifest.json) | Machine-readable index: every rule's id, path, kind, and the MCP tools it gates |
+
+## How each assistant consumes this folder
+
+| Consumer | Mechanism |
+|---|---|
+| Any agent with the QA Flow skills installed | `npx skills add mohamedmongy/qa-flow-skills` — installs the intent-triggered skills (built from `.claude/skills/` + this folder by `scripts/build_skills_repo.py`) to Claude Code, Kiro CLI, Cursor, Codex, Copilot, and ~70 other agents; each skill bundles its own copy of these rules |
+| Claude Code / AGENTS.md readers without the skills | `CLAUDE.md` / `AGENTS.md` fallback — the always-loaded mandatory-rules table pointing here |
+| Any MCP client | the qa-flow MCP server serves this folder live as `qa-flow://rules/manifest` + `qa-flow://rules/{rule-id}` |
+
+**A future assistant needs no code changes:** install the skills with `npx skills add`, point it at `AGENTS.md`, or read `manifest.json` / the MCP rules resources programmatically.
+
+## Editing rules
+
+1. **Edit the rule here** — never in a skill or fallback doc, and never duplicate rule content there.
+2. Skills and fallback docs need touching only when **triggers or paths** change (new rule, renamed file, new gated tool).
+3. In the framework dev repo, sync this folder to the CLI templates (`cli_package/qa_flow/templates/ai-rules/`), republish the skills repo with `scripts/build_skills_repo.py`, and run the drift check (`cli_package/tests/test_ai_rules_sync.py`) plus the behavior checklist (`project_context/negotiation-rules-testing-checklist.md`).
+4. In a generated user project, this folder is **framework-owned**: `qa-flow upgrade` overwrites it — don't hand-edit.
+
+## The one-paragraph version of the rules
+
+Before any QA Flow MCP **write** (create/update/delete/run): the FIRST response to the user is a **single negotiation question** (no tool calls first — not even read-only ones; single exception: creating a flow, API, test group, or query first asks for the defining input if missing — cURL / flow goal / items / statement+kind — then runs one `list_*` name-availability check before the name question, suggesting alternatives on collision); **one topic per message**, with related low-priority settings grouped into a single preset-menu question; **every concern negotiated** even when similar artifacts exist; a **full plan confirmed explicitly** before building; and after building, **ask before running** — never auto-run. Destructive tools additionally require confirming the exact target and its dependents (safeguard Rule 6). The two document-driven workflows define their own pre-confirmation allowance: collection import ([negotiation/collection-import.md](negotiation/collection-import.md)) parses the file locally and permits one per-batch name check; steps-document flow import ([negotiation/flow-import.md](negotiation/flow-import.md)) parses locally into an internal ledger (never displayed), runs its enumerated read-only resolution pass, confirms the steps one per message (reuse vs create), and finishes with one summary + build confirmation. Outside the MCP write path, [operations/docker-run.md](operations/docker-run.md) applies the same posture to *executing* what was built: inspecting, `--dry-run` validation and authoring files are free, while any real run, image build, push, release tag or pipeline trigger takes one explicit confirmation naming the target, the resolved environment and the channels that will fire.

@@ -33,7 +33,8 @@ The most common step type. Executes one or more test cases from an existing API 
 | `context_export` | no | **List** of response field names to save into flow context (canonical field) |
 | `response_export` | no | Legacy alias for `context_export` — prefer `context_export`; don't set both |
 | `context_import` | no | Explicit dependency declaration (validates existence, does not inject automatically) |
-| `header_import` | no | Injects context values as request headers |
+| `header_import` | no | Injects context values as request headers (`global.KEY` reads a global value); wins over a global value injected into the same header |
+| `global_export` | no | `{"<exported name>": "<global key>"}` — also writes that export to the Global Values store (`negotiation/global-values.md`) |
 | `waitBefore` | no | Seconds to wait before executing (default 0) |
 | `waitAfter` | no | Seconds to wait after executing (default 0) |
 | `file_downloads_code` | no | Python snippet to save response files to Assets Manager |

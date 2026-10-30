@@ -15,7 +15,7 @@ Always follow this order. Skipping steps causes silent failures or runtime error
 7. **`create_flow`** or **`update_flow`** — only after explicit user confirmation
 8. **`generate_test_suite(flow_name)`** — regenerates the `.py` suite file if needed
 9. **`run_test_suite(suite="code_generator/TestCases/test_<flow_name>.py", background=true, environment_id=...)`** — always `background=true` for flows
-10. **`get_run_status(job_id)`** — poll until complete
+10. **`get_run_status(job_id)`** — poll until complete; for a flow it lists the steps finished so far (`steps`: status, duration, error per step) and, once a run has failed, the step it stopped at (`failure`). A flow saved before live steps existed reports none until it is re-saved or regenerated (`generate_test_suite`)
 
 **For `update_flow`:** always call `get_flow` first, modify the full steps array, then send the complete definition. The tool replaces the entire steps array — partial updates lose existing steps.
 
@@ -60,5 +60,6 @@ Always follow this order. Skipping steps causes silent failures or runtime error
 | Fetch data from DB for use in later steps | `query` |
 | Reuse another flow as a building block | `flow` |
 | Branch logic based on a context value | `conditional` |
+| Drive an app screen or a web page with the user's own automation script | `ui` — an engine, the script's language and the script (see `step-ui.md`) |
 | Add a fixed time delay | `waitBefore` / `waitAfter` on any step, or standalone `wait` |
 | Save a response file to Assets Manager | `file_downloads_code` on `api_call` or `wait_until` |

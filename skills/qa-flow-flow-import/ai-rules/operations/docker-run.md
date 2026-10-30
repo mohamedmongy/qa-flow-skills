@@ -105,6 +105,16 @@ docker compose --profile tests run --rm -v "$PWD/plans:/app/plans:ro" \
 
 `REPORT_CHANNELS` in `.env` is the standing default; override per run with `--channels a,b`, `--no-email`, or `--require-delivery` (exit 3 if a channel fails). A channel missing its variables warns and skips — it never crashes the run, which is exactly why a "nothing was delivered" complaint is usually an unset variable, not a bug. One invocation = one report: for separate reports, use separate invocations each with its own `-e REPORTS_DIR=/app/Reports/<name>`, or they overwrite each other's summary.
 
+**Allure is an extra report, never a replacement.**
+- Every run also writes Allure results:
+  - container runs to `$REPORTS_DIR/allure-results/`
+  - dashboard runs to `data/storage/allure/<id>/`; the "📊 Allure report" button downloads the whole report as **one self-contained HTML file**, built on demand
+- `junit.xml`, `esim_api_report.html`, the JSON summaries and the dashboard exports are produced exactly as before.
+- The image ships Node and the pinned Allure CLI (`$ALLURE_CLI`). `$ALLURE_CLI awesome <allure-results> --single-file --output allure-report` builds the same single file. The image has no Java.
+- Never tell a user to open the raw `*-result.json` files; point them to the single HTML file.
+- Channels add an "Allure report" link only when `ALLURE_REPORT_URL` is set or the run is in GitLab CI.
+- Guide: `docs/allure-report.md`.
+
 ### Upgrading the image
 
 `docker compose pull && docker compose --profile tests pull`, then `docker compose up -d --force-recreate dashboard`. Artifacts are untouched. `:latest` tracks the newest **release** and moves only on a `vX.Y.Z` tag — a pull that changes nothing usually means no release has been cut, not that the pull failed. **Never suggest `docker compose down -v` to "reset"**: named volumes are seeded from the image only on first mount, and `-v` deletes everything the user created. It is a confirm-loudly action with the data loss stated in the question.
@@ -123,8 +133,13 @@ When authoring or reviewing that job, these four are correctness, not style:
 
 1. **`docker start -a plan_run && PLAN_EXIT=0 || PLAN_EXIT=$?`** — never `; PLAN_EXIT=$?`. The runner uses `set -e`, so the semicolon form aborts the job the moment a test fails, *before* the report is copied out — losing the report on exactly the runs that need it.
 2. **The checkout's artifacts overlay the image's**, `docker cp`-ed in: `code_generator/`, `user_data/`, `user_queries/`, `Configs/`, plus the plan folder. The image ships the artifacts of the release it was built from, so a plan resolves even with nothing copied in — which is precisely why dropping one of these copies fails *silently*, running the released version of an artifact instead of the one on this commit, rather than raising the import error it used to.
-3. **`REPORT_RESULT_URL` is ours, not a GitLab built-in** — computed from `CI_JOB_URL`. Set it and the Teams card gains an "📄 Open test result" button pointing at the job's HTML artifact; unset, the button simply doesn't render.
+3. **`REPORT_RESULT_URL` is ours, not a GitLab built-in** — computed from `CI_JOB_URL`. Set it and the Teams card gains an "📄 Open test result" button and the Jira bug/comments open with a `Run result:` line, both pointing at the job's HTML artifact; unset, neither renders.
 4. **Protected CI/CD variables don't reach unprotected branches.** If SMTP/Teams variables are marked *Protected*, a feature-branch job sees none of them and every channel skips. Check this before debugging the channels themselves.
+5. **The Allure report is a separate job.**
+   - The run job keeps its existing artifacts and adds `Reports/allure-results/`.
+   - The same run job then builds `allure-report/index.html` (one self-contained file) with the image's own `$ALLURE_CLI` (the `.allure_build` step) and publishes it with its other artifacts. Never add a separate Allure job that `needs:` the run job — a `needs:` on a manual `allow_failure` job doesn't wait, so it finds no results. A failed Allure build only prints a warning.
+   - To link the channels to it, set `ALLURE_REPORT_URL` to that job's artifact URL (`$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_REF_NAME/file/allure-report/index.html?job=<allure job>`).
+   - Never drop the existing `reports:junit` or the HTML artifact to "switch to Allure"; both formats are published.
 
 Also carry over from the job's env handling: `--env-file` takes each line verbatim as `KEY=VALUE` and cannot represent a newline, so multi-line variables are dropped whole; runner internals (`CI_*`, `DOCKER_*`, `RUNNER_*`, …) are filtered out rather than handed to the container.
 

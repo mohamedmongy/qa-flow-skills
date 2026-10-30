@@ -26,7 +26,7 @@ This folder is the **single source of truth** for how ANY AI assistant must beha
 
 1. **Edit the rule here** — never in a skill or fallback doc, and never duplicate rule content there.
 2. Skills and fallback docs need touching only when **triggers or paths** change (new rule, renamed file, new gated tool).
-3. In the framework dev repo, sync to the CLI templates per `.kiro/steering/cli-package-sync-rule.md`, republish the skills repo with `scripts/build_skills_repo.py`, and run the drift check (`cli_package/tests/test_ai_rules_sync.py`) plus the behavior checklist (`project_context/negotiation-rules-testing-checklist.md`).
+3. In the framework dev repo, sync this folder to the CLI templates (`cli_package/qa_flow/templates/ai-rules/`), republish the skills repo with `scripts/build_skills_repo.py`, and run the drift check (`cli_package/tests/test_ai_rules_sync.py`) plus the behavior checklist (`project_context/negotiation-rules-testing-checklist.md`).
 4. In a generated user project, this folder is **framework-owned**: `qa-flow upgrade` overwrites it — don't hand-edit.
 
 ## The one-paragraph version of the rules

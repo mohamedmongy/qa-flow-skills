@@ -101,6 +101,16 @@
       ]
     },
     {
+      "id": "global-values-negotiation",
+      "path": "negotiation/global-values.md",
+      "kind": "negotiation",
+      "title": "Global values rule — shared {{global.KEY}} values, producers (prerequisite templates + TTL), per-API header injection; gates global value writes",
+      "gated_tools": [
+        "manage_global_value",
+        "set_api_global_injections"
+      ]
+    },
+    {
       "id": "mcp-safeguard",
       "path": "safeguard.md",
       "kind": "safeguard",
@@ -115,6 +125,8 @@
         "copy_test_group",
         "upload_asset",
         "manage_asset",
+        "manage_scheme",
+        "manage_app_release",
         "manage_prerequisite_template",
         "clear_jobs",
         "generate_test_suite",
@@ -189,6 +201,13 @@
       "gated_tools": []
     },
     {
+      "id": "step-ui",
+      "path": "reference/step-ui.md",
+      "kind": "reference",
+      "title": "Step type: ui (run a UI automation script against an app or website)",
+      "gated_tools": []
+    },
+    {
       "id": "context-wiring",
       "path": "reference/context-wiring.md",
       "kind": "reference",
@@ -254,7 +273,7 @@
   ],
   "adapters": {
     "claude": ".claude/skills/ + CLAUDE.md",
-    "kiro": ".kiro/steering/ stubs (auto-included by Kiro)",
+    "kiro": "skills via `npx skills add mohamedmongy/qa-flow-skills -a kiro`",
     "copilot": ".github/copilot-instructions.md + .github/instructions/",
     "agents": "AGENTS.md (Cursor, Codex, Zed, and any AGENTS.md-reading assistant)"
   }

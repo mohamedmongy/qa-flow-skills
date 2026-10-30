@@ -1,0 +1,361 @@
+# QA Flow — Flow Negotiation Rule
+
+## Scope
+These rules apply whenever a user requests the creation or update of a **flow** using the QA Flow MCP tools (`create_flow`, `update_flow`).
+
+---
+
+## Core Principle — Negotiate Before You Build
+
+**Never call `create_flow` or `update_flow` as the first response to a user request.**
+
+**Never respond to a flow request by presenting a concluded summary or "proposed plan" covering all steps at once. That is not negotiation — it skips the user entirely.**
+
+Negotiation means: ask one question, wait for the answer, ask the next question. The user drives the decisions. You surface the options.
+
+Always go through the negotiation steps below. Each flow-building concern has its own reference file — read the relevant one before asking questions or building.
+
+| Concern | Reference File |
+|---|---|
+| Flow JSON top-level structure, Flow Inputs (runtime parameters) | `ai-rules/reference/flow-structure.md` |
+| Shared Session Config (`session_config` headers) and Environment Variables (`env.*` in payloads/headers) | `ai-rules/reference/context-wiring.md` |
+| API selection and test case discovery | `ai-rules/reference/api-and-testcase-selection.md` |
+| `api_call` step — fields, payload merge, multi test-case | `ai-rules/reference/step-api-call.md` |
+| `wait_until` step — API/DB polling, conditions | `ai-rules/reference/step-wait-until.md` |
+| `query` step — saved DB queries, result access | `ai-rules/reference/step-query.md` |
+| `conditional`, `flow`, and `wait` steps | `ai-rules/reference/step-conditional-and-flow.md` |
+| `ui` step (run a UI automation script against an app / website) | `ai-rules/reference/step-ui.md` |
+| All step types quick reference | `ai-rules/reference/build-workflow.md` |
+| Context export, import, header_import, templates | `ai-rules/reference/context-wiring.md` |
+| File downloads from step responses | `ai-rules/reference/file-downloads.md` |
+| Build sequence and common mistakes | `ai-rules/reference/build-workflow.md` |
+
+---
+
+## ⛔ CRITICAL — NO Step Type Is Exempt From Negotiation
+
+**This rule applies to ALL step types without exception:** `api_call`, `query`, `wait_until`, `conditional`, `flow`, `wait`, `ui`.
+
+The following behaviors are **strictly forbidden**, regardless of step type or how much detail the user already provided:
+
+- Calling `list_queries`, `list_api_definitions`, `get_available_apis`, `get_flow`, `get_test_cases`, or **any** MCP tool **before starting the negotiation sequence** — with a single exception: the one `list_flows` name-availability check that immediately precedes the 2a question (see 2a).
+- Calling `create_flow` or `update_flow` without completing Steps 1–3 below.
+- Treating a stated step type, query name, API name, or flow name as sufficient to skip negotiation.
+- "Gathering context first" — this is not preparation, it is the forbidden pattern itself.
+
+**The source comes first, then the name check.** If the request doesn't describe what the flow should do (its goal / the steps to chain), the first response asks exactly that — with zero tool calls. As soon as the purpose is known, the **only permitted pre-negotiation action** runs: the 2a name-availability check — derive the intended flow name from the purpose, call `list_flows` once to check whether it already exists, then immediately ask the 2a name question with that result in hand. Zero other tool calls before 2a is answered.
+
+---
+
+## Step 1 — Gather Context from the MCP Server (After 2a Is Answered)
+
+After the user confirms the flow name and description, **then** query the server:
+
+1. `list_flows` — already called for the 2a name check; reuse its result: does a similar flow exist? Is this an update or a new flow?
+2. `list_api_definitions` — which APIs are available as steps? Do all required APIs exist?
+3. If a similar flow exists, call `get_flow` on it to understand existing patterns (step types, context wiring, session config, naming). Use this as **reference only** — never assume the new flow should copy it.
+4. Call `get_test_cases` on **every API** that will be used as a step, so you can present the available test cases to the user.
+5. If steps reference DB queries, call `list_queries` to verify the query methods exist.
+
+Use this context to inform your questions, not to skip them.
+
+---
+
+## Step 2 — Negotiate Each Step With the User (Always, Even When APIs Exist)
+
+**The existence of a similar flow or a known API does NOT allow you to skip negotiation.**
+The user may want different test cases, different exports, different headers, a different step order, or none of the defaults from a similar flow.
+
+Work through each concern below by asking the user directly. Do **not** assume — even for things that seem obvious.
+
+### 2a — Purpose, Then Flow Name and Description
+- **The purpose comes first.** If the user's request doesn't describe what the flow should do (its goal or the steps to chain), ask exactly that as the first question — zero tool calls: *"What should this flow do — which calls or checks should it chain, end to end?"* Skip this entirely when the request already describes it — never re-ask for what was provided.
+- **Then run the name-availability check** — the only pre-negotiation tool call: detect the intended flow name (the user's stated name, or a concise `snake_case` proposal derived from the purpose, e.g. `login_with_otp`, `checkout_flow`, `verify_user_identity`) and call `list_flows` to see whether it already exists.
+
+> ⚠️ **A listing proves a name is TAKEN, never that it is FREE** — results are size-capped, so an artifact trimmed out of the listing reads exactly like one that does not exist. Prefer `list_flows(names_only=True)`, and confirm any name you intend to create with a targeted `get_flow(name)` (404 = genuinely free). That lookup is part of this same permitted check. Full rule: `ai-rules/reference/name-availability.md`.
+- **Name is free** → ask: **"I suggest naming this flow `<proposed_name>` — '<proposed_description>'. Does that work, or would you like a different name or description?"**
+- **Name already exists** → a collision **always** resolves to creating a new flow under a **new name** — never overwrite or update the existing flow as a fallback (updating is a separate, explicit user request). Tell the user it exists and offer **2–3 alternatives** (versioned suffix like `login_with_otp_v2`, or a more specific purpose word) plus a free-text option, e.g. `(1) login_with_otp_v2  (2) login_with_url_otp_check  (3) type another name`.
+- Keep the description to one sentence explaining what the flow does end-to-end; its **first line** is what `list_flows` shows. In the same message, mention the optional **note** (the user's own checklist, shown with every run result) — see `ai-rules/reference/description-and-note.md`.
+- Wait for the user to confirm or provide their own name/description before moving on; if their free-text name also collides, re-check before continuing.
+
+### 2b — Steps — Per-Step-Type Negotiation Questions
+
+For **every step** in the requested flow, work through its type-specific questions **one at a time, in order**. Complete all questions for step N before moving to step N+1.
+
+---
+
+#### Step Type: `api_call`
+
+Ask these in order — two single questions, then two **grouped** questions (per the *Grouped low-priority parameters* rule in `ai-rules/reference/selection-format.md`):
+
+1. **Which API?** Call `list_api_definitions` first. Present as numbered menu: `(1) csrf  (2) login_with_otp  (3) get_client_api_groups`
+2. **Which test case?** Call `get_test_cases` on the chosen API. Present all available test cases as a numbered menu. Never default to `default` without asking. The user may pick **several** — say so in the menu ("pick one or more").
+   **If more than one is picked, confirm the ORDER in the same message** — they run sequentially in the order given, each from its own payload (any key set on the step overrides it for all of them), and **only the LAST one's response is exported to context** (`context_export` / `response_export` are "last wins"). Restate the resulting order and name which test case will feed the exports, e.g. *"order: invalid_password → valid_login; `login.accessToken` comes from valid_login"*. Never leave a negative case last on a step that exports context — propose moving it earlier, or splitting the step. Details: `ai-rules/reference/api-and-testcase-selection.md`.
+3. **Overrides & delays — ONE grouped message.** Does this step need any of: **(a)** payload overrides beyond what the test case provides (field names and values — static, `{{context.*}}`, `{{auto.*}}`); **(b)** URL query-param overrides (`params`); **(c)** `waitBefore` / `waitAfter` delays (default 0)? Offer "none" as the easy answer. **When a payload field or query param matches an earlier step's export (by name or purpose), pre-suggest that `{{context.<step>.<field>}}` value** per *Smart Context Wiring* below. **For every static literal value, do not silently hardcode it — apply *Static Values → Flow Inputs or Env Vars* below.**
+4. **Context wiring — ONE grouped message.** **Lead with the resolved suggestion** per *Smart Context Wiring* below — matched export→consumer pairs and import candidates as a picker (accept all / subset / none / custom). Cover: **(a)** What to export: which response fields should this step save to context for downstream steps (numbered menu including a "none" option). **(b)** What to import as headers (`header_import`): header name, context variable (e.g. `csrf_step.csrfToken`), and optional prefix (e.g. `"Bearer "`) — or none.
+
+---
+
+#### Step Type: `query`
+
+Ask these in order — the parameters are collected as ONE grouped message:
+
+1. **Which saved query?** Call `list_queries` first. Present all available query methods as a numbered menu — the menu itself confirms existence. **If the needed query does not exist**, it must be created with `save_query` (under `ai-rules/negotiation/query.md`) and smoke-tested before the flow is built.
+2. **Query parameters — ONE grouped message.** Present **all** required parameters in a single table-style question — for each, the value comes from `(a) flow input {{context.flow_input.X}}  (b) env var {{context.env.X}}  (c) previous step {{context.step_name.field}}  (d) static value`:
+
+   ```
+   `get_user_status` takes 2 parameters — where should each come from?
+   - user_id: (a) flow input  (b) env var  (c) previous step  (d) static
+   - tenant:  (a) flow input  (b) env var  (c) previous step  (d) static
+   ```
+
+   **Lead with inputs/env vars, not the static option** — if the user gives a static literal, apply *Static Values → Flow Inputs or Env Vars* below before keeping it hardcoded. When an earlier step already exports a matching value, **pre-suggest it** for option (c) — name the exact context variable (e.g. `create_user.userId` for `user_id`) per *Smart Context Wiring* below.
+3. **What to export?** Which fields from the query result should be saved to context? DB results are accessed as `result.<field>` — for arrays use `result[0].<field>`. Apply *Smart Context Wiring* below: present inferred exportable fields matched to their downstream consumers as a picker, plus a "none" option.
+
+---
+
+#### Step Type: `wait_until`
+
+Ask these in order — cadence + condition and the wiring are each ONE grouped message:
+
+1. **What to poll — API or DB query?**
+   - If API: same questions as `api_call` items 1 and 2 (which API, which test case — including the order + "last wins" confirmation when several are picked; each selected test case is polled in turn with its own full timeout, so warn if `count × timeout` approaches the flow's time limit).
+   - If DB query: same questions as `query` items 1 and 2 (which query, what params — grouped).
+2. **Polling configuration — ONE grouped message: timeout + interval + condition.** Offer preset cadences plus custom, and ask for the condition in the same message:
+
+   ```
+   Polling cadence: (1) Quick — 30s timeout, 2s interval  (2) Default — 60s timeout, 5s interval
+   (3) Patient — 300s timeout, 15s interval  (4) Custom — tell me timeout / interval
+   And what condition ends the wait? (a) visual — field path, operator (==, !=, contains, is_not_empty), expected value
+   (b) python_code — describe the logic and I'll write the snippet
+   ```
+
+   **Remind the user:** DB query results must use `result.<field>` as the condition field path, never bare field names.
+3. **Context wiring — ONE grouped message.** **Lead with the resolved suggestion** per *Smart Context Wiring* below. **(a)** What to export from the final successful poll response. **(b)** *(API-polling variant only — do NOT skip it just because this is a `wait_until` step)* what to import as headers (`header_import`): e.g. Step 1's `csrfToken` as an `X-CSRF-Token` header, or an auth/bearer token — header name, context variable, optional prefix.
+
+---
+
+#### Step Type: `conditional`
+
+Ask these in order — two grouped messages:
+
+1. **The condition — ONE grouped message (mode + expression).**
+   - If visual: which context field to check (e.g. `login_step.accessToken`), which operator (`==`, `!=`, `>`, `<`, `contains`, `is_empty`, `is_not_empty`), and what value to compare against. If multiple conditions, the logic operator: `(1) AND  (2) OR`. **Pre-suggest the likely field** per *Smart Context Wiring* below — offer the exports already agreed on earlier steps as pickable candidates (and if the needed field isn't exported yet, propose retro-adding that export).
+   - If python_code: ask the user to describe the logic; you will write the snippet using `get_var()`, `continue_flow()`, `raise_error()`, `stop_flow()`, `run_subflow()`, `jump_to_step()`.
+2. **Outcomes — ONE grouped message: on-true AND on-false together.** Present the options once and ask for both branches: `(1) continue  (2) warn  (3) stop  (4) raise_error  (5) run_flow (pick sub-flow)  (6) jump (pick step name)` — e.g. *"On true → ? On false → ?"*. **If `run_flow` is chosen for a branch**, follow up (for that branch only): which sub-flow, and what input values to pass (`subflow_inputs`).
+
+---
+
+#### Step Type: `flow` (sub-flow step)
+
+Ask these in order — the wiring is ONE grouped message:
+
+1. **Which sub-flow to invoke?** Call `list_flows` first. Present as numbered menu.
+2. **Wiring — ONE grouped message: inputs + exports.** Call `get_flow` on the chosen sub-flow to check its declared `inputs`, then present **all** of them in one table-style question — for each, where does the value come from: flow input, env var, previous step context, or a static value? **Apply *Smart Context Wiring* below: when an earlier step's export matches a sub-flow input (by name or purpose), pre-suggest that exact context variable as the recommended pick for it.** **Offer inputs/env vars first; if the user gives a static literal, apply *Static Values → Flow Inputs or Env Vars* below before hardcoding it.** In the same message, ask which context keys should be pulled from the sub-flow back into the parent flow (or none).
+
+---
+
+#### Step Type: `wait`
+
+Ask only one question:
+
+1. **How long to wait?** How many seconds? Should the delay happen before (`waitBefore`) or after (`waitAfter`) — or both? Note: prefer adding `waitBefore`/`waitAfter` directly on the adjacent step instead, unless this step's sole purpose is the delay.
+
+---
+
+#### Step Type: `ui` (run a UI automation script)
+
+> Read `ai-rules/reference/step-ui.md` before the first `ui` step. A ui step is the user's own standalone script that targets one app of a scheme — there is no action list, no `cloud`, no release and no flow-level `ui` block to negotiate (the release is picked when the flow runs). **Where it runs is the flow's, never the step's:** the step carries no `runs_on` / `executor` / `device` (the save refuses them) — the flow's target for the scheme (question 4) binds each app to a provider, a device and an optional executor.
+
+Ask these in order — the target first, then engine, then the script, then one **grouped** question; then, once per scheme, the flow's target:
+
+0. **Target — ONE grouped message.** Read `list_app_releases` (read-only, part of this question) and ask, as one selection per `ai-rules/reference/selection-format.md`: the **scheme** and the one **app** of it this step drives (from the scheme's apps — several may share a platform, e.g. Merchant iOS / Seller iOS). Never ask where it runs here — that is question 4, asked once for the flow. A scheme **without targets** can't run ui steps: say so and offer to add a target first (Environments → Schemes & releases, or `manage_scheme` `targets` / `default_target` — its own confirmed write before the flow is built); never build the step on it. Never ask for a release: the step doesn't store one — a run uses the scheme's default release unless the run picks another (`app_releases`). For a second ui step in the same flow, propose the previous step's scheme and app and say so. When no scheme or no fitting app exists, offer to create or extend it (`manage_scheme` with its `apps`), confirmed as its own write before the flow is built; when the scheme has no release yet, say its ui steps can't run until one exists and offer `manage_app_release` (builds only — a mobile app names an uploaded build by key, `upload_asset` the `.ipa` / `.apk` first; never provider refs or credentials); never invent a build key, an app id or a URL.
+1. **Engine and script language.** Ask which engine the step's script drives: `(1) Appium — mobile app  (2) Playwright — website`. Then the language the script is written in: each engine lists its own (`step-ui.md`), and while an engine has a single language (`python` for Appium and Playwright today) state it in the same message rather than ask. Never infer the engine from a script the user already pasted without saying so — name what you read ("this script imports `appium`, so the engine is Appium") and let the user confirm. The Maestro engine was removed: a Maestro flow can't be a step — say so and ask for an Appium script instead.
+2. **The script.** Ask the user for the script this step runs, written in the chosen language for the chosen engine (pasted text or a file to read). The save refuses a script that isn't valid in that language or doesn't import the engine's client — when the script doesn't match, say so and ask whether the engine or the script is wrong; never edit the script to make it fit. Never compose one from a description of taps and checks, and never invent locators, capabilities or waits; if the user has no script yet, say that the step needs one and stop there. Save it as given — the only changes to propose, each shown before applying, are: the target placeholders in place of what the release and runner now supply — `{{release.app}}` / `{{release.app_id}}` / `{{release.url}}` for a hardcoded or env-var app, bundle id / package or site URL, the session opened with the helpers — `open_page("<browser>")` / `open_driver(caps={...})` from `qa_flow_session` in place of `webdriver.Remote(...)`, a Playwright `launch` / `connect` / `connect_over_cdp`, a hardcoded hub or endpoint, `{{runner.hub_url}}` / `{{runner.cdp_url}}` (the save refuses a script that opens its own session — `step-ui.md` *Opening the session*; local WebDriver / Appium steps need ChromeDriver / Appium running, Playwright nothing); the provider's own capabilities removed — an `lt:options` / `LT:Options` / `bstack:options` block, `browserstack.*` keys, `LT_*` / `BROWSERSTACK_*` variables — leaving W3C / `appium:` caps in `open_driver(caps=...)` and the browser as the helper's argument, and provider credentials as `{{runner.username}}` / `{{runner.access_key}}`; a call to the provider's own API (`{{runner.api_url}}`, `browserstack_executor`, a network-log fetch) removed in favour of the capture hand-off in question 3 (the save refuses a script that names a provider — `step-ui.md` *`QA_FLOW_CAPS`*); `{{env.*}}` in place of other per-environment or secret values (device UDID or name, account — apply *Static Values → Flow Inputs or Env Vars* and `ai-rules/negotiation/env-vars.md`); and `{{context.<step>.<field>}}` for a value an earlier step produces (an OTP from a query step).
+3. **Timeout and context wiring — ONE grouped message.** **(a)** Timeout in seconds (default 600) — offer a lower one when the script is short. **(b)** What later steps need from this script, matched to its consumers per *Smart Context Wiring*: each value must be written by the script to the `QA_FLOW_EXPORTS` file — if the script doesn't write it yet, show the two lines to add and get them approved. A value that lives in an **API response** the app or page receives (a token, an id, a header) is declared on the step instead — a `responses` entry (`name`, `url`, optional `method`, `export`) per `step-ui.md` *API responses*: ask which call and which `body.…` / `headers.…` / `status` source, never guess a path, and check the script hands the calls over — a web script wraps its driving in `with capture(driver):` / `with capture(page):` from `qa_flow_capture` (a joined WebDriver session passes `bidi_url=`), a native app's session opened with `open_driver()` hands its id over itself and QA Flow reads the provider's network log — if it doesn't, propose that one change (show it, get it approved); never write capture code of its own. A declared call is also shown in the run results, and one that never happens fails the step — say so when proposing it. **(c)** Whether the script continues where an earlier step or flow stopped: then it joins the session the earlier step kept open (`open_driver(keep_open=True)` → `open_driver(continue_session="{{context.<step>.session_id}}")`; a Playwright page can't be kept or continued on any target — one Playwright step, or `open_driver` with `open_page(driver=driver)`) or opens its session without relaunching (`noReset` / `autoLaunch: false`) — point it out when the script does the opposite; don't change it silently.
+4. **The flow's target — ONE question per scheme, asked once for the flow** (after its first ui step on that scheme; not per step). Offer the scheme's targets by name from `list_app_releases` — each with what it binds the flow's apps of that scheme to (provider, device kind, executor) — or **"scheme default"** (the scheme's `default_target`, named). The pick becomes the flow's `app_targets: {"<scheme>": "<target>"}` (scheme default = leave the scheme out); a run may still pick another (the runner: `--app-target SCHEME=TARGET`, or `--app-target SCHEME.APP=TARGET` for one app). A target that doesn't bind one of the flow's apps on that scheme is refused at save — offer only targets that bind them all, or say which app is missing. **When no target binds them all, or the user wants the apps on different targets** (e.g. iOS on TestMu, Android local, the website on TestMu), offer **a target per app** in the same question: `app_targets: {"<scheme>": {"<app>": "<target>", "*": "<target>"}}` — each app key with a target that binds it, `"*"` optional for the scheme's other apps (`step-ui.md` *A flow pins its target*). Provider and executor are target data, never step data: a HyperExecute job (`step-ui.md` *Appium as a HyperExecute job*) is a target whose binding sets `executor: "hyperexecute"` — when one is offered, name its cost (VM setup per step; the VM can't reach this machine's network, so a value like an OTP from a VPN database must come from a query step between two ui steps). Name what a cloud target costs too: a release build is uploaded to the provider on the step's first run (cached afterwards), and the provider's credentials must be set on the environment (Environments → Device cloud providers: `BROWSERSTACK_USERNAME` / `BROWSERSTACK_ACCESS_KEY`, `LT_USERNAME` / `LT_ACCESS_KEY`).
+
+State the prerequisites once (they are not automated): the engine's client library for the script's language, and whatever the script connects to — an Appium server with its driver and a booted simulator / emulator with the app installed, or a browser.
+
+---
+
+> **Selection format rule:** small fixed choice sets → an inline numbered menu on one line — `(1) a  (2) b  (3) c`. Long lists of existing items → a numbered table/list, one option per line with a short identifying detail; show at most **20** (tell the user more exist and to just name theirs); prefix rows with `- [ ]` when several can be picked. Full rule, examples, and native structured-UI guidance: read `ai-rules/reference/selection-format.md` before presenting your first list.
+
+### 🧠 Smart Context Wiring — Resolve, Suggest, Let the User Pick
+
+Context variables can feed **every step type**: `api_call` headers (`header_import`), payload fields and URL/query params (`{{context.*}}` templates), DB `query` inputs, sub-flow (`flow`) inputs, and `conditional` condition fields. Whenever a step's question set reaches a context-wiring topic (what to export, what to import, where a parameter's value comes from), **do not ask it open-ended — resolve the likely wiring yourself first**, then present the result as a pickable suggestion:
+
+1. **What this step can provide** — infer exportable fields from the chosen API's test cases (`get_test_cases` — assertions and `context_export` in existing cases reveal the response shape), the saved query's result columns, or the sub-flow's exported context keys. Auth/session material (tokens, csrf, ids, GUIDs, status fields) are prime candidates.
+2. **What other steps will need** — scan the flow goal and every step already negotiated (and those still coming) for consumers: API headers, payload fields, query params, DB query inputs, sub-flow inputs, conditional comparison fields.
+3. **Match producers to consumers** and present the pairs as the suggested wiring inside the step's existing grouped context-wiring question — as a picker (use the native structured picker per `ai-rules/reference/selection-format.md` when available):
+
+   ```
+   Suggested context wiring for step 2 (`login`):
+   - [ ] export `accessToken` → step 3 `Authorization` header (prefix "Bearer ")
+   - [ ] export `userId`      → step 4 query input `user_id`
+   (1) accept all suggested  (2) keep only some — tell me which  (3) none  (4) different wiring — tell me
+   ```
+
+Rules:
+
+- **Suggestions never replace the question.** The user always confirms; accepting the suggestion (option 1) counts as explicit confirmation of every suggested pair. This stays ONE grouped message per step — the suggestion is the content of the wiring question, not an extra message.
+- **Retro-fill missing exports.** While negotiating step N, if it consumes a value no earlier step exports, propose adding the export to the producing step (naming the step and field) — or a flow input / env var per *Static Values → Flow Inputs or Env Vars* — and get the user's pick. Never leave a dangling `{{context.*}}` reference.
+- **Mirror agreed wiring on the consumer side.** When the consuming step's question comes up later, present the already-agreed import as the recommended default option instead of re-asking from scratch.
+- **Never invent fields.** Suggest only what is evidenced by test cases, query columns, sub-flow exports, or the user's stated goal. If nothing sensible can be inferred, fall back to the plain open question.
+
+### ⚠️ Static Values → Flow Inputs or Env Vars
+
+**Whenever a negotiated value is a static literal — a hardcoded payload field, query param, query input, sub-flow input, `wait_until`/`conditional` comparison value, header value, etc. — do not silently bake it into the flow.** Stop and ask the user where the value should live: a **flow input** (run-varying test data — see 2d), an **env var** (environment-specific config or a secret — see 2e), or hardcoded (only after the user explicitly confirms). The classification, the default recommendation for each kind of value, variable naming, and secret handling are defined in **`ai-rules/negotiation/env-vars.md`** §3–§5 — apply them rather than re-deriving them here.
+
+Collect placements efficiently: a single literal is one question; **several pending literals are presented together in ONE table-style message**, each row picking its home — never one message per literal:
+
+```
+You gave 3 static values — where should each live?  (1) flow input  (2) env var  (3) keep hardcoded
+- tenant = montymobile:      (1) / (2) / (3)   [recommend: env var]
+- user_id = 8842:            (1) / (2) / (3)   [recommend: flow input]
+- channel = "web":           (1) / (2) / (3)
+```
+
+**Never assume hardcoding** — a static literal in a payload, param, or input is a prompt to ask this question, not a value to copy verbatim. This applies across every step type.
+
+### 2c — Shared Session Config
+> See `ai-rules/reference/context-wiring.md` for full schema and usage.
+
+**Shared session is enabled by default.** Always set `use_shared_session: true` unless the user explicitly opts out.
+
+- Ask: **"Shared session is on by default — this means all steps will share a common `session_config` (e.g. base headers like `tenant`, `device-id`, `RecaptchaToken`). Should I keep shared session enabled?"**
+- If yes (or no answer to the contrary) → set `use_shared_session: true` and ask which headers belong in `session_config`.
+- If no → set `use_shared_session: false` and skip `session_config`.
+- Tokens extracted mid-flow (e.g. `Authorization: Bearer`) go in `header_import` on the step, not in `session_config`.
+
+### 2d — Flow Inputs
+> See `ai-rules/reference/flow-structure.md` (the `inputs` field) for schema and usage.
+
+- Do any values vary between test runs (user IDs, feature IDs, GUIDs)?
+- This is also where every static literal flagged by the *Static Values → Flow Inputs or Env Vars* rule lands when the user chooses "flow input."
+- If yes → declare them as `inputs` with `name`, `description`, `type`, `required`, `default_value`, and reference them with `{{context.flow_input.X}}` wherever the literal appeared.
+- If all values come from env vars (or the user explicitly chose to keep them hardcoded) → no `inputs` needed.
+
+### 2e — Environment Variables
+> The authoritative rule is `ai-rules/negotiation/env-vars.md` — syntax per location, placement, secrets, existence checks, create-before-use.
+
+- Are any values (base URLs, client IDs, status IDs, tenant IDs, tokens) environment-specific, shared config, or secrets? This is also where every static literal flagged above lands when the user chooses "env var."
+- Reference them with `{{context.env.VAR_NAME}}` in payloads/params/query inputs and `env.VAR_NAME` in `header_import.variable` (env-vars.md §2) — the `context.` prefix is required inside a flow.
+- Check each variable exists in the environment the flow runs in; a truncated `get_environment` listing proves presence only (env-vars.md §6). A missing one must be created before the build — name it and the environment it goes in, and collect any secret value per env-vars.md §5.
+
+### 2f — Dataset (Data-Driven Runs)
+> See `ai-rules/reference/dataset-binding.md` for the schema, placeholders, and result shape.
+
+- Ask: **"Should this flow run once per row of a dataset (data-driven)? Options: (1) no — run once · (2) an Assets Manager file (CSV / XLSX / JSON) · (3) a saved database query (each result row is one run) · (4) inline rows you give me now."**
+- If (2)/(3)/(4) → in the **same** follow-up message, group the low-priority settings: which asset / query method / rows, `on_row_failure` (`continue` default / `stop`), `execution` (`sequential` default — one row after the other / `parallel` — all rows at once, with `max_parallel`; parallel only when the rows are independent), and any `limit` / `filter` / `types`. Then run `preview_dataset` once to show the columns, then `infer_dataset_mapping(kind="flow", name=<flow>, binding=…)` and confirm which column feeds which step value; the rows you keep are saved as the binding's `mapping`. Steps and test cases keep their **literal** values — never write `{{data.<column>}}` into them (`data.<column>` in `header_import` / `context_import` is the one explicit form). A declared flow input with the same name as a column is seeded per row automatically.
+- If (1) → no `dataset` field. Never assume a dataset from a request that merely mentions "several users" — ask.
+- A dataset never replaces negotiation of the steps: the rows only vary values the steps already reference.
+
+---
+
+## Asking Order — Sequential, Strictly — ONE TOPIC PER MESSAGE
+
+**This is the most critical rule in this document. Read it carefully.**
+
+Ask **one topic per message**. High-stakes decisions (which API, which test case, the final plan) get their own question; **related low-priority parameters are grouped into a single message** exactly as each step type's question set above specifies (overrides+delays together, exports+imports together, all query params together, polling cadence+condition together — see the *Grouped low-priority parameters* rule in `ai-rules/reference/selection-format.md`). Never combine **unrelated** concerns, options across different steps, or summaries into the same reply. The user must answer before you ask the next topic.
+
+The order per step is: work through the **full question set for that step's type as defined in 2b above** — e.g. the four messages for `api_call` (API, test case, overrides+delays, context wiring), the three for `query` — in the listed order, waiting for each answer. Do **not** stop after the API/test-case questions; the overrides, static-value, and wiring questions are part of the set.
+
+Complete every question for step N before moving to step N+1.
+Only after **all steps are fully negotiated**, ask the **flow-level configuration (2c + 2d + 2e + 2f) as ONE grouped message**: shared session (on by default — which `session_config` headers?), flow inputs, env vars, and whether the flow runs over a dataset. By this point most of it is confirming what already accumulated from the static-value promotions — present it as a short checklist, not four separate interrogations. If the user picks a dataset source, its settings (2f) get one follow-up message of their own.
+
+### ❌ Forbidden Patterns
+
+- **Never** present a full summary of all steps as a "proposed plan" before each step is individually negotiated.
+- **Never** bundle "here are my assumptions + here is my plan" in a single message.
+- **Never** mix unrelated topics in the same message (e.g. "Which API should this use, and what should the whole flow export?"). Grouping the **related low-priority parameters of one concern** into a single message (overrides+delays, exports+imports, all params of one query) is *required* by the question sets above — what is forbidden is cross-topic bundling and plan-disguised-as-question.
+- **Never** conclude what the user wants and skip asking — even if it seems obvious from context.
+- **Never** show a full multi-step plan and call it "negotiation". That is not negotiation.
+- **Never** call any MCP tool (`list_queries`, `list_api_definitions`, `get_available_apis`, `get_flow`, `get_test_cases`, or anything else) before the 2a question — **except** the single `list_flows` name-availability check that immediately precedes it. The first *response* must always be the 2a negotiation question, informed by that check.
+- **Never** treat any step type as an exception to negotiation. `query`, `api_call`, `wait_until`, `conditional`, `flow`, `wait`, `ui` — all require the full per-step-type negotiation sequence above before building.
+- **Never** skip step-type-specific questions because the step type or target name was stated in the request. The full question set for that step type must be asked.
+
+### ✅ Correct Pattern Example
+
+```
+Agent:  Step 1 — which API should we use? Here are the options: ...
+User:   csrf
+Agent:  Which test case for `csrf`? Available: valid_csrf_token, invalid_csrf_token2
+User:   valid_csrf_token
+Agent:  Any overrides for step 1 — payload fields, query params, or waitBefore/waitAfter delays? (or "none")
+User:   none
+Agent:  Context wiring for step 1 — what should it export (e.g. csrfToken, Set-Cookie, or none),
+        and what should it import as headers (or none)?
+User:   export csrfToken, import nothing
+Agent:  Moving to step 2 — which API should we use? Here are the options: ...
+```
+
+---
+
+## Step 3 — Present a Full Proposed Plan and Ask for Confirmation
+
+After all steps are negotiated, present a complete summary:
+
+- **Flow name** and description
+- **Note** — or "none"
+- **Inputs** declared (name, type, default) — or "none"
+- **Session config** headers — or "none"
+- **Steps in order**:
+  - Step name → type → API/query/flow used → test case (a `ui` step: its scheme / app, engine, script language, timeout and the script's first lines — never a runs on / executor)
+  - What it exports to context (field name and context key)
+  - What it imports from context (header_import or template vars)
+- **Targets** (`app_targets`) — per scheme the flow's ui steps use: the pinned target (or the target per app) and what it binds the apps to, or "scheme default (<default_target>)"; "none" without ui steps
+- **Environment variables** referenced (note any that must still be created in the environment config)
+- **Static values promoted** — for each literal the user supplied, state where it landed (flow input, env var, or intentionally hardcoded)
+- **Assumptions** you are making (be explicit — list every default you applied)
+
+Then ask: **"Does this look right, or would you like to change anything before I build it?"**
+
+Do not proceed until the user explicitly confirms or provides corrections.
+
+---
+
+## Step 4 — Build
+
+Only after explicit user confirmation:
+
+1. Create any missing API definitions first (following `ai-rules/negotiation/api.md`)
+2. Create any missing saved queries first (following `ai-rules/negotiation/query.md`)
+3. Call `create_flow` or `update_flow` with the agreed parameters
+4. Call `validate_flow` before executing
+5. Follow all rules in `ai-rules/safeguard.md`
+
+---
+
+## Step 5 — After Creating the Flow, Ask to Run It
+
+After `create_flow` or `update_flow` completes successfully, **always** ask the user if they want to run the flow before doing anything else.
+
+Use this exact pattern — one message, one question:
+
+```
+The flow "[flow_name]" has been created successfully. Would you like to run it now?
+```
+
+- If the user says **yes** → run the flow test suite using `run_test_suite` (or the appropriate run tool).
+- If the user says **no** → stop and wait for further instructions.
+- Do **not** run the flow automatically without asking.
+- Do **not** combine this question with any other message or suggestion.
+
+---
+
+## Step Naming Conventions
+
+- Use descriptive names that reflect the action: `get_csrf_token`, `login_with_url_otp`, `form_step`
+- Or use positional names when order is more important than the action: `step_1`, `step_2`, `step_3`
+- Be consistent within a single flow — don't mix both styles
+
+---
+
+## What This Rule Is Not
+
+- It is not a rigid questionnaire. Questions are adapted to the specific request — but they are never skipped.
+- It does not block quick edits where all details are already explicitly stated by the user.
+- It does not apply when the user is asking for information only (e.g. "show me the flow", "list all flows").
+- It does not govern creating a flow from a **fully-specified steps document** (per-step endpoints/SQL, `{{env.*}}`/`{{context.*}}` wiring, timeouts) — `negotiation/flow-import.md` replaces the per-step question cadence there with an internal ledger driving a per-step confirmation loop plus one summary + build confirmation; this file still owns the flow's structure and step semantics.
+- A similar existing flow is **reference material only** — it is never a substitute for asking the user what they want.

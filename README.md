@@ -39,6 +39,7 @@ npx skills remove
 | `qa-flow-env-vars` | MUST be used whenever a QA Flow task touches environment variables or environments. |
 | `qa-flow-flow-import` | MUST be used whenever the user asks to create a QA Flow flow from a steps document. |
 | `qa-flow-flow-negotiation` | MUST be used whenever the user asks to create or update a QA Flow flow (create_flow/update_flow) or API definition (create_or_update_api) via the qa-flow MCP server. |
+| `qa-flow-global-values` | MUST be used whenever a QA Flow task touches the Global Values store. |
 | `qa-flow-load-test-negotiation` | MUST be used whenever the user asks to start or manage a QA Flow load test / stress test / performance test (start_load_test/manage_load_test_queue) via the qa-flow MCP server. |
 | `qa-flow-plan-execute` | MUST be used whenever the user asks to execute, build, or apply a QA Flow **build plan**. |
 | `qa-flow-query-negotiation` | MUST be used whenever the user asks to create, update, duplicate, or delete a QA Flow saved database query (save_query/update_query/duplicate_query/delete_query). |

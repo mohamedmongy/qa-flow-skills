@@ -135,7 +135,7 @@ Only after explicit user confirmation:
    - **Untag:** `manage_releases action='untag'` with non-empty `job_ids`.
    - **🚀 Release Execution:** `test_group_releases action='by_release'` to get the group list, then `execute_test_group` for **each** group (background by default → capture each `job_id`), passing the agreed `environment_id`. Run them in order.
    - **🔄 Run Fresh & Compare:** `test_group_releases action='execute_and_compare'` with `release_a`, `release_b`, and `environment_id` (long-running).
-   - **📤 Export:** `export_test_group_results` (group_name, execution_id, format[, save_to]) or `get_load_test_results execution_id=… export=true`.
+   - **📤 Export:** `export_test_group_results` (group_name, execution_id, format[, save_to]) or `get_load_test_results execution_id=… export=true[, format]`.
    - **Clear cache:** `clear_analytics_cache` (no parameters).
 3. Follow all rules in `ai-rules/safeguard.md`.
 
@@ -152,7 +152,7 @@ Started execution of [n] test group(s) for release "[release]".
 Would you like me to monitor the runs and report when they finish?
 ```
 - If **yes** → poll `get_run_status` per job; when done, summarize and (for run-fresh) show the comparison. **Then always offer to export the results** — as its own message, one question (laid out per the Selection format rule):
-  - **🚀 Release Execution** → the per-group execution reports: *"Would you like to export any group's results? Supported formats: JSON, CSV, HTML, PDF."* → `export_test_group_results(group_name, execution_id, format[, save_to])`.
+  - **🚀 Release Execution** → the per-group execution reports: *"Would you like to export any group's results? Supported formats: JSON, CSV, HTML, PDF, Allure report (one HTML file)."* → `export_test_group_results(group_name, execution_id, format[, save_to])`.
   - **🔄 Run Fresh & Compare** → the release comparison: *"Would you like to export the comparison? Supported format: CSV."* → the release-comparison CSV export.
 - For **export** (action 5) → report the saved file path. Offer nothing further unless asked.
 
@@ -176,8 +176,9 @@ In all cases, do **not** auto-run another action or chain a second execution wit
 - **Run Fresh & Compare** (`execute_and_compare`) re-runs **both** releases' groups, then compares — long-running and roughly double the cost of executing one release. Offer the **cached** compare (`action='compare'`, the dashboard's "Use cached (24h)" toggle) first when the user just wants the numbers.
 
 ### Export
-- `export_test_group_results` formats: `json | html | csv | pdf` for one execution; **`excel` exports ALL executions** (different endpoint) — never assume excel means "this one".
-- Load-test export is `get_load_test_results export=true` (formats `json | csv | html`, scope `full | api_endpoints`). Viewing ⚡ Load Test Results without `export` is read-only and exempt.
+- `export_test_group_results` formats: `json | html | csv | pdf | allure` for one execution; **`excel` exports ALL executions** (different endpoint) — never assume excel means "this one".
+- `allure` = the run as ONE self-contained Allure HTML report (open with a double-click), built by the dashboard on first request — works for any stored run, old ones included. If the dashboard host has no Allure CLI (no `$ALLURE_CLI`, no Node/`npx`), the export fails with that reason — surface it, don't retry another way.
+- Load-test export is `get_load_test_results export=true` with `format`: `json` (default) `| csv | html | allure`. Viewing ⚡ Load Test Results without `export` is read-only and exempt.
 
 ### Cache behaviour
 - Analytics responses are cached in-memory with a **5-minute TTL** (`CACHE_EXPIRATION = 300`). `tag`/`untag` **auto-clear** it, so release reports update immediately after a tag change — a standalone `clear_analytics_cache` is only needed when run data changed by means other than tagging.
